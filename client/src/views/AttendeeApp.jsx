@@ -28,7 +28,20 @@ export default function AttendeeApp({ onExit }) {
 
   const [services] = useLive(() => api(`/services?lat=${pos.lat}&lng=${pos.lng}`), [], [pos.lat, pos.lng]);
   const [alerts] = useLive(() => api('/alerts'), ['alert:new']);
-  const [active] = useLive(() => (activeId ? api(`/requests/${activeId}`) : Promise.resolve(null)), ['request:update'], [activeId]);
+  const [active] = useLive(
+    async () => {
+      if (!activeId) return null;
+      try {
+        return await api(`/requests/${activeId}`);
+      } catch (err) {
+        setActiveId(null);
+        save('siq_active_req', null);
+        return null;
+      }
+    },
+    ['request:update'],
+    [activeId]
+  );
 
   const shown = useMemo(() => (services || []).filter((s) => !filter || s.type === filter), [services, filter]);
   const nearest = shown.slice(0, 3);
@@ -139,7 +152,19 @@ function RequestScreen({ initialType, onBack, onSent }) {
   const send = async () => {
     setBusy(true); setErr('');
     try {
-      const r = await api('/requests', { method: 'POST', body: { type: emergency ? 'medical' : type, emergency, note, language: lang, lat: pos.lat, lng: pos.lng, name: profile.name } });
+      const chosenType = type || (emergency ? 'medical' : null);
+      const r = await api('/requests', {
+        method: 'POST',
+        body: {
+          type: chosenType,
+          emergency,
+          note,
+          language: lang,
+          lat: pos.lat,
+          lng: pos.lng,
+          name: profile.name,
+        },
+      });
       onSent(r.id);
     } catch (e) { setErr(e.message); setBusy(false); }
   };
@@ -151,7 +176,7 @@ function RequestScreen({ initialType, onBack, onSent }) {
         <p className="lead">{t('selectType')}</p>
         <div className="grid2">
           {TYPE_IDS.map((id) => (
-            <button key={id} className={`pick ${!emergency && type === id ? 'on' : ''}`} onClick={() => { setType(id); setEmergency(false); }}>
+            <button key={id} className={`pick ${type === id ? 'on' : ''}`} onClick={() => setType(id)}>
               <TypeIcon type={id} size={30} /><b>{t.type(id)}</b>
             </button>
           ))}
@@ -201,7 +226,18 @@ function DetailScreen({ id, onBack, onRequest }) {
 
 function TrackScreen({ id, onBack, onDone }) {
   const { t, pos } = useApp();
-  const [r, reload] = useLive(() => api(`/requests/${id}`), ['request:update'], [id]);
+  const [r, reload] = useLive(
+    async () => {
+      try {
+        return await api(`/requests/${id}`);
+      } catch (err) {
+        onDone();
+        return null;
+      }
+    },
+    ['request:update'],
+    [id]
+  );
   if (!r) return <div className="phone"><header className="topbar back"><button className="icon-btn" onClick={onBack}><ArrowLeft size={22} /></button></header></div>;
   const steps = [['open', t('st_open')], ['accepted', t('st_accepted')], ['completed', t('st_completed')]];
   const idx = r.status === 'cancelled' ? -1 : steps.findIndex(([k]) => k === r.status);

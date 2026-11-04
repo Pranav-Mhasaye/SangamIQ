@@ -1,0 +1,16 @@
+[
+  { "phrase": "help", "lang": "en", "expectedIntent": "generic_help", "expectedType": "helpdesk", "expectedPriority": "high" },
+  { "phrase": "need help", "lang": "en", "expectedIntent": "generic_help", "expectedType": "helpdesk", "expectedPriority": "high" },
+  { "phrase": "please help", "lang": "en", "expectedIntent": "generic_help", "expectedType": "helpdesk", "expectedPriority": "high" },
+  { "phrase": "मदद", "lang": "hi", "expectedIntent": "generic_help", "expectedType": "helpdesk", "expectedPriority": "high" },
+  { "phrase": "मदद करो", "lang": "hi", "expectedIntent": "generic_help", "expectedType": "helpdesk", "expectedPriority": "high" },
+  { "phrase": "सहायता", "lang": "hi", "expectedIntent": "generic_help", "expectedType": "helpdesk", "expectedPriority": "high" },
+  { "phrase": "बचाओ", "lang": "hi", "expectedIntent": "generic_help", "expectedType": "helpdesk", "expectedPriority": "high" },
+  { "phrase": "मदत", "lang": "mr", "expectedIntent": "generic_help", "expectedType": "helpdesk", "expectedPriority": "high" },
+  { "phrase": "मला मदत हवी आहे", "lang": "mr", "expectedIntent": "generic_help", "expectedType": "helpdesk", "expectedPriority": "high" },
+  { "phrase": "वाचवा", "lang": "mr", "expectedIntent": "generic_help", "expectedType": "helpdesk", "expectedPriority": "high" },
+  { "phrase": "madat", "lang": "mr", "expectedIntent": "generic_help", "expectedType": "helpdesk", "expectedPriority": "high" },
+  { "phrase": "madad", "lang": "hi", "expectedIntent": "generic_help", "expectedType": "helpdesk", "expectedPriority": "high" },
+  { "phrase": "मला पाणी हवे आहे", "lang": "mr", "expectedIntent": "request_help", "expectedType": "water" },
+  { "phrase": "where is doctor", "lang": "en", "expectedIntent": "find_service", "expectedType": "medical" }
+]

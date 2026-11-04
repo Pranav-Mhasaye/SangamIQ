@@ -13,11 +13,27 @@ export default function VolunteerApp({ onExit }) {
   const [volunteers, reloadVol] = useLive(() => api('/volunteers'), ['volunteer:update']);
   const [toast, setToast] = useState('');
 
-  useEffect(() => { if (!meId && volunteers?.length) setMeId(volunteers[0].id); }, [volunteers, meId]);
-  useEffect(() => save('siq_vol', meId), [meId]);
+  useEffect(() => {
+    if (volunteers?.length) {
+      const exists = volunteers.some((v) => v.id === meId);
+      if (!exists) {
+        const fallback = volunteers[0].id;
+        setMeId(fallback);
+        save('siq_vol', fallback);
+      }
+    }
+  }, [volunteers, meId]);
 
-  const me = volunteers?.find((v) => v.id === meId);
-  const [requests, reloadReq] = useLive(() => (meId ? api(`/requests?volunteerId=${meId}`) : Promise.resolve([])), ['request:new', 'request:update'], [meId]);
+  useEffect(() => {
+    if (meId) save('siq_vol', meId);
+  }, [meId]);
+
+  const me = volunteers?.find((v) => v.id === meId) || (volunteers?.length ? volunteers[0] : null);
+  const [requests, reloadReq] = useLive(
+    () => (me?.id ? api(`/requests?volunteerId=${me.id}`) : Promise.resolve([])),
+    ['request:new', 'request:update', 'volunteer:update'],
+    [me?.id]
+  );
 
   const open = useMemo(() => (requests || []).filter((r) => r.status === 'open')
     .sort((a, b) => Number(b.matchedToMe) - Number(a.matchedToMe) || (b.priority === 'critical') - (a.priority === 'critical') || a.distanceM - b.distanceM), [requests]);
