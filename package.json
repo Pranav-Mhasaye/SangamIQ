@@ -1,0 +1,15 @@
+{
+  "name": "sangamiq",
+  "version": "0.1.0",
+  "private": true,
+  "description": "SangamIQ Technologies - AI-powered real-time assistance & crowd safety platform (working prototype)",
+  "scripts": {
+    "setup": "npm install && npm install --prefix server && npm install --prefix client",
+    "dev": "concurrently -n api,web -c red,yellow \"npm run dev --prefix server\" \"npm run dev --prefix client\"",
+    "build": "npm run build --prefix client",
+    "start": "npm start --prefix server"
+  },
+  "devDependencies": {
+    "concurrently": "^9.0.1"
+  }
+}

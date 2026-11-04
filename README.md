@@ -1,0 +1,44 @@
+# SangamIQ - working prototype
+
+AI-assisted real-time help for large gatherings (built around Alandi / Ashadhi Wari, Pune).
+Three apps in one: **Attendee** (phone-style UI), **Volunteer** dashboard, **Organiser** control room.
+
+## Run it
+
+Requires Node.js 20+.
+
+```bash
+npm run setup     # installs root, server and client dependencies
+npm run dev       # API http://localhost:3001  +  web http://localhost:5173
+```
+
+Open http://localhost:5173 and pick a role. Best demo: open **Attendee** in one window (or on your phone, same Wi-Fi, using the Network URL Vite prints) and **Volunteer** + **Organiser** in others, then send a help request and watch it move live.
+
+Production-style single server: `npm run build && npm start` then open http://localhost:3001.
+
+## What works
+
+- **Attendee:** nearby medical / water / food / toilet / help desk / transport on a map, request help (with Emergency option), live request tracking, call volunteer, get walking directions, alerts, profile, Marathi / Hindi / English, large-text mode.
+- **Voice AI:** tap the mic and speak (Chrome / Edge / Android Chrome) or type: "मला पाणी हवे आहे", "doctor", "where is the toilet". The reply is read aloud in the chosen language and a request is created.
+- **Volunteer:** go online/offline, requests ranked by match + distance, accept, mark done, directions.
+- **Organiser:** live crowd heatmap, 15-minute forecast per zone, automatic crowd alerts, broadcast alerts in 3 languages, request table, KPIs, "Simulate surge" button to demo the forecast.
+- **Matching:** nearest online verified volunteers scored by distance, skill fit and current workload.
+
+## Sample data and limits
+
+All places, volunteers and crowd numbers are fake sample data near Alandi. The attendee app uses a fixed demo location in Alandi (Profile -> "Use my real GPS location" switches to your GPS, though the sample places will then be far away). The voice NLU is keyword based, crowd data is simulated, there is no login, and data lives in memory (resets on server restart; `POST /api/demo/reset` also resets it). See `PROJECT_SPEC.md` for the roadmap.
+
+Map tiles come from OpenStreetMap, so the browser needs internet access.
+
+## Structure
+
+```
+server/src/  index.js (API + matching)  voice.js (voice AI)  crowd.js (simulation + forecast)  data.js (seed)  bus.js (SSE)
+client/src/  views/ (Attendee, Volunteer, Organiser)  components/ (MapView, VoiceSheet)  i18n.js  api.js  styles.css
+docs/schema.sql  target PostgreSQL/PostGIS schema
+PROJECT_SPEC.md  product spec + roadmap     AGENTS.md  instructions for AI agents
+```
+
+## Using it in Antigravity
+
+Open this folder as the workspace, run `npm run setup && npm run dev` in the terminal, then ask the agent to work through the "Next steps" in `PROJECT_SPEC.md`. `AGENTS.md` and `PROJECT_SPEC.md` give it the context from your venture deck.
