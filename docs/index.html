@@ -1,18 +1,22 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>SangamIQ — Real-Time Crowd Safety &amp; Assistance for Mass Gatherings</title>
-  <meta name="description" content="AI-powered crowd safety platform connecting attendees, volunteers, and event organisers in real time. Designed for mass gatherings like Wari, Kumbh, and festivals.">
+  <meta name="description"
+    content="AI-powered crowd safety platform connecting attendees, volunteers, and event organisers in real time. Designed for mass gatherings like Wari, Kumbh, and festivals.">
   <meta property="og:title" content="SangamIQ — Real-Time Crowd Safety &amp; Assistance">
-  <meta property="og:description" content="When the crowd is huge, help should still be one tap away. AI-powered real-time assistance and crowd safety for large gatherings.">
+  <meta property="og:description"
+    content="When the crowd is huge, help should still be one tap away. AI-powered real-time assistance and crowd safety for large gatherings.">
   <meta property="og:type" content="website">
   <meta property="og:url" content="https://pranav-mhasaye.github.io/SangamIQ/">
   <meta name="theme-color" content="#C00000">
 
   <!-- Emoji Favicon Data URI -->
-  <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2286%22>🚩</text></svg>">
+  <link rel="icon"
+    href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2286%22>🚩</text></svg>">
 
   <!-- Google Fonts: Mukta (Devanagari-safe) -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -28,7 +32,7 @@
       --navy: #12305B;
       --navy-dark: #0A1B33;
       --green: #2E9E5B;
-      
+
       --bg: #FCFBF9;
       --surface: #FFFFFF;
       --surface-subtle: #F5F4F0;
@@ -36,11 +40,11 @@
       --text: #19202C;
       --text-muted: #546071;
       --line: #E3E6EB;
-      
+
       --shadow-sm: 0 2px 8px rgba(18, 48, 91, 0.06);
       --shadow-md: 0 10px 30px rgba(18, 48, 91, 0.08);
       --shadow-lg: 0 18px 45px rgba(18, 48, 91, 0.12);
-      
+
       --radius-sm: 8px;
       --radius-md: 16px;
       --radius-lg: 24px;
@@ -63,7 +67,9 @@
     }
 
     /* ---------- Base Reset & Typography ---------- */
-    *, *::before, *::after {
+    *,
+    *::before,
+    *::after {
       box-sizing: border-box;
       margin: 0;
       padding: 0;
@@ -94,7 +100,8 @@
       background: none;
     }
 
-    img, svg {
+    img,
+    svg {
       display: block;
       max-width: 100%;
     }
@@ -745,6 +752,7 @@
     }
   </style>
 </head>
+
 <body>
 
   <!-- Sticky Navigation Header -->
@@ -781,12 +789,14 @@
           <span class="hero-tag">AI-powered crowd safety</span>
           <h1 class="hero-title">When the crowd is huge, help should still be one tap away.</h1>
           <p class="hero-sub">
-            SangamIQ connects attendees with nearby help and volunteers in real time, making large events like the Wari, Kumbh and festivals safer for everyone, including elders without smartphones.
+            SangamIQ connects attendees with nearby help and volunteers in real time, making large events like the Wari,
+            Kumbh and festivals safer for everyone, including elders without smartphones.
           </p>
           <div class="hero-btns">
             <a href="#contact" class="btn btn-primary demo-link">Request a demo</a>
             <a href="#how-it-works" class="btn btn-secondary">See how it works</a>
-            <a href="#" class="btn btn-outline prototype-link" id="prototypeBtn" target="_blank" rel="noopener">Try the prototype</a>
+            <a href="#" class="btn btn-outline prototype-link" id="prototypeBtn" target="_blank" rel="noopener">Try the
+              prototype</a>
           </div>
           <p class="hero-note">
             <span>🛡️</span> Works in मराठी · हिंदी · English, by tap, voice or phone call
@@ -795,58 +805,65 @@
 
         <div class="hero-visual">
           <!-- (a) Inline SVG Phone Mockup of Attendee App -->
-          <svg class="phone-mockup" viewBox="0 0 340 680" width="340" height="680" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="SangamIQ mobile app interface preview">
+          <svg class="phone-mockup" viewBox="0 0 340 680" width="340" height="680" xmlns="http://www.w3.org/2000/svg"
+            role="img" aria-label="SangamIQ mobile app interface preview">
             <defs>
               <linearGradient id="phoneBorder" x1="0" y1="0" x2="1" y2="1">
-                <stop offset="0%" stop-color="#3A4659"/>
-                <stop offset="100%" stop-color="#1E2633"/>
+                <stop offset="0%" stop-color="#3A4659" />
+                <stop offset="100%" stop-color="#1E2633" />
               </linearGradient>
               <filter id="cardShadow" x="-10%" y="-10%" width="120%" height="130%">
-                <feDropShadow dx="0" dy="4" stdDeviation="6" flood-opacity="0.12"/>
+                <feDropShadow dx="0" dy="4" stdDeviation="6" flood-opacity="0.12" />
               </filter>
             </defs>
 
             <!-- Outer Phone Chassis -->
-            <rect x="5" y="5" width="330" height="670" rx="42" fill="#0D1117" stroke="url(#phoneBorder)" stroke-width="6"/>
+            <rect x="5" y="5" width="330" height="670" rx="42" fill="#0D1117" stroke="url(#phoneBorder)"
+              stroke-width="6" />
             <!-- Inner Screen -->
-            <rect x="14" y="14" width="312" height="652" rx="34" fill="#F8F9FA"/>
+            <rect x="14" y="14" width="312" height="652" rx="34" fill="#F8F9FA" />
 
             <!-- Speaker Notch / Island -->
-            <rect x="120" y="24" width="100" height="18" rx="9" fill="#000000"/>
+            <rect x="120" y="24" width="100" height="18" rx="9" fill="#000000" />
 
             <!-- App Header -->
-            <rect x="14" y="48" width="312" height="52" fill="#FFFFFF"/>
-            <text x="32" y="80" font-family="'Mukta', sans-serif" font-size="20" font-weight="800" fill="#C00000">Sangam<tspan fill="#F26B2A">IQ</tspan></text>
-            <rect x="235" y="62" width="75" height="26" rx="13" fill="#F1F3F6"/>
-            <text x="250" y="80" font-family="'Mukta', sans-serif" font-size="12" font-weight="700" fill="#5D6676">मराठी ▾</text>
+            <rect x="14" y="48" width="312" height="52" fill="#FFFFFF" />
+            <text x="32" y="80" font-family="'Mukta', sans-serif" font-size="20" font-weight="800" fill="#C00000">Sangam
+              <tspan fill="#F26B2A">IQ</tspan></text>
+            <rect x="235" y="62" width="75" height="26" rx="13" fill="#F1F3F6" />
+            <text x="250" y="80" font-family="'Mukta', sans-serif" font-size="12" font-weight="700" fill="#5D6676">मराठी
+              ▾</text>
 
             <!-- Map View Area -->
             <g transform="translate(14, 100)">
               <!-- Map Background Tiles -->
-              <rect width="312" height="280" fill="#EBF0F5"/>
+              <rect width="312" height="280" fill="#EBF0F5" />
               <!-- Roads / River Geometry -->
-              <path d="M 0,160 Q 150,140 312,170" fill="none" stroke="#C4D7E8" stroke-width="26" stroke-linecap="round"/>
-              <text x="110" y="155" font-family="'Mukta', sans-serif" font-size="11" fill="#7593B1" font-weight="600">इंद्रायणी नदी (Indrayani)</text>
-              <path d="M 60,0 L 70,280 M 240,0 L 220,280 M 0,70 L 312,90" fill="none" stroke="#D7DFE8" stroke-width="12"/>
+              <path d="M 0,160 Q 150,140 312,170" fill="none" stroke="#C4D7E8" stroke-width="26"
+                stroke-linecap="round" />
+              <text x="110" y="155" font-family="'Mukta', sans-serif" font-size="11" fill="#7593B1"
+                font-weight="600">इंद्रायणी नदी (Indrayani)</text>
+              <path d="M 60,0 L 70,280 M 240,0 L 220,280 M 0,70 L 312,90" fill="none" stroke="#D7DFE8"
+                stroke-width="12" />
 
               <!-- Pulse User Location -->
-              <circle cx="150" cy="190" r="14" fill="rgba(26, 115, 232, 0.25)"/>
-              <circle cx="150" cy="190" r="7" fill="#1A73E8" stroke="#FFFFFF" stroke-width="2.5"/>
+              <circle cx="150" cy="190" r="14" fill="rgba(26, 115, 232, 0.25)" />
+              <circle cx="150" cy="190" r="7" fill="#1A73E8" stroke="#FFFFFF" stroke-width="2.5" />
 
               <!-- Service Pins -->
               <!-- Medical Pin -->
               <g transform="translate(195, 65)">
-                <circle cx="16" cy="16" r="16" fill="#C00000" stroke="#FFFFFF" stroke-width="2.5"/>
-                <path d="M 16,9 L 16,23 M 9,16 L 23,16" stroke="#FFFFFF" stroke-width="3.5" stroke-linecap="round"/>
+                <circle cx="16" cy="16" r="16" fill="#C00000" stroke="#FFFFFF" stroke-width="2.5" />
+                <path d="M 16,9 L 16,23 M 9,16 L 23,16" stroke="#FFFFFF" stroke-width="3.5" stroke-linecap="round" />
               </g>
               <!-- Water Pin -->
               <g transform="translate(75, 120)">
-                <circle cx="14" cy="14" r="14" fill="#1E7FD6" stroke="#FFFFFF" stroke-width="2.5"/>
+                <circle cx="14" cy="14" r="14" fill="#1E7FD6" stroke="#FFFFFF" stroke-width="2.5" />
                 <text x="14" y="19" font-size="13" text-anchor="middle" fill="#FFFFFF">💧</text>
               </g>
               <!-- Food Pin -->
               <g transform="translate(230, 210)">
-                <circle cx="14" cy="14" r="14" fill="#E08A00" stroke="#FFFFFF" stroke-width="2.5"/>
+                <circle cx="14" cy="14" r="14" fill="#E08A00" stroke="#FFFFFF" stroke-width="2.5" />
                 <text x="14" y="19" font-size="13" text-anchor="middle" fill="#FFFFFF">🍲</text>
               </g>
             </g>
@@ -854,35 +871,43 @@
             <!-- Nearby Help Cards Overlay -->
             <!-- Card 1: Medical Camp (250 m) -->
             <g transform="translate(26, 395)" filter="url(#cardShadow)">
-              <rect width="288" height="74" rx="14" fill="#FFFFFF"/>
-              <circle cx="36" cy="37" r="18" fill="#FEEAEA"/>
-              <path d="M 36,29 L 36,45 M 28,37 L 44,37" stroke="#C00000" stroke-width="3" stroke-linecap="round"/>
-              <text x="64" y="32" font-family="'Mukta', sans-serif" font-size="15" font-weight="700" fill="#1D2330">Primary Medical Camp</text>
-              <text x="64" y="50" font-family="'Mukta', sans-serif" font-size="12" fill="#5D6676">250 m away · 3 min</text>
-              <rect x="238" y="24" width="36" height="26" rx="6" fill="#E8F1FD"/>
-              <text x="256" y="42" font-family="'Mukta', sans-serif" font-size="12" font-weight="700" fill="#0B4A99" text-anchor="middle">Directions</text>
+              <rect width="288" height="74" rx="14" fill="#FFFFFF" />
+              <circle cx="36" cy="37" r="18" fill="#FEEAEA" />
+              <path d="M 36,29 L 36,45 M 28,37 L 44,37" stroke="#C00000" stroke-width="3" stroke-linecap="round" />
+              <text x="64" y="32" font-family="'Mukta', sans-serif" font-size="15" font-weight="700"
+                fill="#1D2330">Primary Medical Camp</text>
+              <text x="64" y="50" font-family="'Mukta', sans-serif" font-size="12" fill="#5D6676">250 m away · 3
+                min</text>
+              <rect x="238" y="24" width="36" height="26" rx="6" fill="#E8F1FD" />
+              <text x="256" y="42" font-family="'Mukta', sans-serif" font-size="12" font-weight="700" fill="#0B4A99"
+                text-anchor="middle">Directions</text>
             </g>
 
             <!-- Card 2: Water Station (120 m) -->
             <g transform="translate(26, 480)" filter="url(#cardShadow)">
-              <rect width="288" height="74" rx="14" fill="#FFFFFF"/>
-              <circle cx="36" cy="37" r="18" fill="#E8F4FD"/>
+              <rect width="288" height="74" rx="14" fill="#FFFFFF" />
+              <circle cx="36" cy="37" r="18" fill="#E8F4FD" />
               <text x="36" y="43" font-size="16" text-anchor="middle">💧</text>
-              <text x="64" y="32" font-family="'Mukta', sans-serif" font-size="15" font-weight="700" fill="#1D2330">Water Station - Ghat Steps</text>
-              <text x="64" y="50" font-family="'Mukta', sans-serif" font-size="12" fill="#5D6676">120 m away · 1 min</text>
-              <rect x="238" y="24" width="36" height="26" rx="6" fill="#E8F1FD"/>
-              <text x="256" y="42" font-family="'Mukta', sans-serif" font-size="12" font-weight="700" fill="#0B4A99" text-anchor="middle">Directions</text>
+              <text x="64" y="32" font-family="'Mukta', sans-serif" font-size="15" font-weight="700"
+                fill="#1D2330">Water Station - Ghat Steps</text>
+              <text x="64" y="50" font-family="'Mukta', sans-serif" font-size="12" fill="#5D6676">120 m away · 1
+                min</text>
+              <rect x="238" y="24" width="36" height="26" rx="6" fill="#E8F1FD" />
+              <text x="256" y="42" font-family="'Mukta', sans-serif" font-size="12" font-weight="700" fill="#0B4A99"
+                text-anchor="middle">Directions</text>
             </g>
 
             <!-- Big Red Request Help Button -->
             <g transform="translate(26, 570)" filter="url(#cardShadow)">
-              <rect width="288" height="54" rx="16" fill="#C00000"/>
-              <text x="144" y="30" font-family="'Mukta', sans-serif" font-size="17" font-weight="800" fill="#FFFFFF" text-anchor="middle">Request Help</text>
-              <text x="144" y="46" font-family="'Mukta', sans-serif" font-size="11" font-weight="600" fill="#FFD0D0" text-anchor="middle">Tap for emergency · मदत मागा</text>
+              <rect width="288" height="54" rx="16" fill="#C00000" />
+              <text x="144" y="30" font-family="'Mukta', sans-serif" font-size="17" font-weight="800" fill="#FFFFFF"
+                text-anchor="middle">Request Help</text>
+              <text x="144" y="46" font-family="'Mukta', sans-serif" font-size="11" font-weight="600" fill="#FFD0D0"
+                text-anchor="middle">Tap for emergency · मदत मागा</text>
             </g>
 
             <!-- Bottom Home Indicator -->
-            <rect x="110" y="650" width="120" height="4" rx="2" fill="#555555"/>
+            <rect x="110" y="650" width="120" height="4" rx="2" fill="#555555" />
           </svg>
         </div>
       </div>
@@ -917,7 +942,9 @@
           <span class="section-tag">The Reality On Ground</span>
           <h2 class="section-title">Help exists. People just can’t reach it.</h2>
           <p class="section-sub">
-            During our Ashadhi Wari field visit in Alandi and Pandharpur, we witnessed the disconnect firsthand: aid stations and volunteers are all around, yet lost pilgrims, dehydrated elders, and medical cases struggle to reach them across congested routes.
+            During our Ashadhi Wari field visit in Alandi and Pandharpur, we witnessed the disconnect firsthand: aid
+            stations and volunteers are all around, yet lost pilgrims, dehydrated elders, and medical cases struggle to
+            reach them across congested routes.
           </p>
         </div>
 
@@ -925,25 +952,29 @@
           <div class="problem-card">
             <div class="problem-icon">👥</div>
             <h3>Overcrowding</h3>
-            <p>Massive gatherings overwhelm narrow alleys and ghat steps. Navigating through sea of people makes physical searching for services exhausting and risky.</p>
+            <p>Massive gatherings overwhelm narrow alleys and ghat steps. Navigating through sea of people makes
+              physical searching for services exhausting and risky.</p>
           </div>
 
           <div class="problem-card">
             <div class="problem-icon">🧭</div>
             <h3>People get separated</h3>
-            <p>Family members, especially elderly pilgrims without modern smartphones, lose their group in seconds with no way to convey their location or find help.</p>
+            <p>Family members, especially elderly pilgrims without modern smartphones, lose their group in seconds with
+              no way to convey their location or find help.</p>
           </div>
 
           <div class="problem-card">
             <div class="problem-icon">📶</div>
             <h3>Poor connectivity</h3>
-            <p>Cellular networks jam in dense crowds; many elders have no smartphone. When towers fail, conventional apps and internet services become unreachable.</p>
+            <p>Cellular networks jam in dense crowds; many elders have no smartphone. When towers fail, conventional
+              apps and internet services become unreachable.</p>
           </div>
 
           <div class="problem-card">
             <div class="problem-icon">⏱️</div>
             <h3>Delayed medical help</h3>
-            <p>During emergencies, ambulances cannot navigate blocked roads. Without nearby verified volunteer coordination, critical minutes are lost.</p>
+            <p>During emergencies, ambulances cannot navigate blocked roads. Without nearby verified volunteer
+              coordination, critical minutes are lost.</p>
           </div>
         </div>
       </div>
@@ -964,19 +995,23 @@
           <div class="step-card">
             <div class="step-num">1</div>
             <h3>Ask in your own way</h3>
-            <p>Tap a giant high-contrast button, speak naturally in Marathi or Hindi via voice AI, or call our toll-free line from any basic keypad phone. No complicated smartphone apps needed.</p>
+            <p>Tap a giant high-contrast button, speak naturally in Marathi or Hindi via voice AI, or call our toll-free
+              line from any basic keypad phone. No complicated smartphone apps needed.</p>
           </div>
 
           <div class="step-card">
             <div class="step-num">2</div>
             <h3>AI finds the nearest help</h3>
-            <p>Our matching engine routes requests to verified, nearby volunteers based on distance, skill fit, and current workload—or guides you to the nearest medical camp, water, food, toilet, help desk, or transport.</p>
+            <p>Our matching engine routes requests to verified, nearby volunteers based on distance, skill fit, and
+              current workload—or guides you to the nearest medical camp, water, food, toilet, help desk, or transport.
+            </p>
           </div>
 
           <div class="step-card">
             <div class="step-num">3</div>
             <h3>Organisers see the full picture</h3>
-            <p>Command centers monitor a live crowd density heatmap, review 15-minute predictive surge alerts, manage volunteer capacity, and broadcast multilingual emergency warnings.</p>
+            <p>Command centers monitor a live crowd density heatmap, review 15-minute predictive surge alerts, manage
+              volunteer capacity, and broadcast multilingual emergency warnings.</p>
           </div>
         </div>
       </div>
@@ -1000,35 +1035,40 @@
               <div class="feature-check">✓</div>
               <div class="feature-text">
                 <b>Voice AI</b>
-                <span>Hands-free speech understanding in Marathi, Hindi, and English with regional dialect responses.</span>
+                <span>Hands-free speech understanding in Marathi, Hindi, and English with regional dialect
+                  responses.</span>
               </div>
             </li>
             <li>
               <div class="feature-check">✓</div>
               <div class="feature-text">
                 <b>Geospatial service finder with walking directions</b>
-                <span>Find verified medical camps, water tankers, food seva, toilets, and shuttle stops with real-time ETAs.</span>
+                <span>Find verified medical camps, water tankers, food seva, toilets, and shuttle stops with real-time
+                  ETAs.</span>
               </div>
             </li>
             <li>
               <div class="feature-check">✓</div>
               <div class="feature-text">
                 <b>Emergency alerts in 3 languages</b>
-                <span>Broadcast urgent public safety notices instantly in Marathi, Hindi, and English across affected zones.</span>
+                <span>Broadcast urgent public safety notices instantly in Marathi, Hindi, and English across affected
+                  zones.</span>
               </div>
             </li>
             <li>
               <div class="feature-check">✓</div>
               <div class="feature-text">
                 <b>Live crowd heatmap with 15-minute forecast</b>
-                <span>Predictive surge intelligence flags bottleneck hazards before dangerous stampede conditions develop.</span>
+                <span>Predictive surge intelligence flags bottleneck hazards before dangerous stampede conditions
+                  develop.</span>
               </div>
             </li>
             <li>
               <div class="feature-check">✓</div>
               <div class="feature-text">
                 <b>Large-text senior-friendly design</b>
-                <span>52px+ touch targets, high-contrast Devanagari typography, and accessible navigation for elderly pilgrims.</span>
+                <span>52px+ touch targets, high-contrast Devanagari typography, and accessible navigation for elderly
+                  pilgrims.</span>
               </div>
             </li>
           </ul>
@@ -1036,76 +1076,87 @@
 
         <div class="features-visual">
           <!-- (b) Inline SVG Crowd Heatmap Infographic -->
-          <svg class="heatmap-mockup" viewBox="0 0 500 380" width="500" height="380" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Organiser crowd heatmap and predictive intelligence visualization">
+          <svg class="heatmap-mockup" viewBox="0 0 500 380" width="500" height="380" xmlns="http://www.w3.org/2000/svg"
+            role="img" aria-label="Organiser crowd heatmap and predictive intelligence visualization">
             <defs>
               <radialGradient id="redZone" cx="50%" cy="50%" r="50%">
-                <stop offset="0%" stop-color="#C00000" stop-opacity="0.7"/>
-                <stop offset="65%" stop-color="#C00000" stop-opacity="0.35"/>
-                <stop offset="100%" stop-color="#C00000" stop-opacity="0"/>
+                <stop offset="0%" stop-color="#C00000" stop-opacity="0.7" />
+                <stop offset="65%" stop-color="#C00000" stop-opacity="0.35" />
+                <stop offset="100%" stop-color="#C00000" stop-opacity="0" />
               </radialGradient>
               <radialGradient id="orangeZone" cx="50%" cy="50%" r="50%">
-                <stop offset="0%" stop-color="#F26B2A" stop-opacity="0.65"/>
-                <stop offset="70%" stop-color="#F26B2A" stop-opacity="0.3"/>
-                <stop offset="100%" stop-color="#F26B2A" stop-opacity="0"/>
+                <stop offset="0%" stop-color="#F26B2A" stop-opacity="0.65" />
+                <stop offset="70%" stop-color="#F26B2A" stop-opacity="0.3" />
+                <stop offset="100%" stop-color="#F26B2A" stop-opacity="0" />
               </radialGradient>
               <radialGradient id="greenZone" cx="50%" cy="50%" r="50%">
-                <stop offset="0%" stop-color="#2E9E5B" stop-opacity="0.6"/>
-                <stop offset="70%" stop-color="#2E9E5B" stop-opacity="0.25"/>
-                <stop offset="100%" stop-color="#2E9E5B" stop-opacity="0"/>
+                <stop offset="0%" stop-color="#2E9E5B" stop-opacity="0.6" />
+                <stop offset="70%" stop-color="#2E9E5B" stop-opacity="0.25" />
+                <stop offset="100%" stop-color="#2E9E5B" stop-opacity="0" />
               </radialGradient>
             </defs>
 
             <!-- Dashboard Frame -->
-            <rect width="500" height="380" rx="16" fill="#141A24"/>
+            <rect width="500" height="380" rx="16" fill="#141A24" />
             <!-- Top Bar -->
-            <rect width="500" height="42" rx="16" fill="#1A2230"/>
-            <circle cx="24" cy="21" r="5" fill="#C00000"/>
-            <circle cx="38" cy="21" r="5" fill="#F26B2A"/>
-            <circle cx="52" cy="21" r="5" fill="#2E9E5B"/>
-            <text x="75" y="26" font-family="'Mukta', sans-serif" font-size="13" font-weight="700" fill="#D3DCE8">SangamIQ Control Room — Alandi Live GIS &amp; Forecast</text>
-            <rect x="415" y="11" width="70" height="20" rx="10" fill="#C00000"/>
-            <text x="450" y="25" font-family="'Mukta', sans-serif" font-size="10" font-weight="800" fill="#FFFFFF" text-anchor="middle">LIVE FEED</text>
+            <rect width="500" height="42" rx="16" fill="#1A2230" />
+            <circle cx="24" cy="21" r="5" fill="#C00000" />
+            <circle cx="38" cy="21" r="5" fill="#F26B2A" />
+            <circle cx="52" cy="21" r="5" fill="#2E9E5B" />
+            <text x="75" y="26" font-family="'Mukta', sans-serif" font-size="13" font-weight="700"
+              fill="#D3DCE8">SangamIQ Control Room — Alandi Live GIS &amp; Forecast</text>
+            <rect x="415" y="11" width="70" height="20" rx="10" fill="#C00000" />
+            <text x="450" y="25" font-family="'Mukta', sans-serif" font-size="10" font-weight="800" fill="#FFFFFF"
+              text-anchor="middle">LIVE FEED</text>
 
             <!-- Grid & Map Base -->
             <g transform="translate(0, 42)">
-              <rect width="500" height="338" fill="#10151E"/>
+              <rect width="500" height="338" fill="#10151E" />
               <!-- Grid Lines -->
-              <path d="M 0,60 L 500,60 M 0,120 L 500,120 M 0,180 L 500,180 M 0,240 L 500,240 M 100,0 L 100,338 M 200,0 L 200,338 M 300,0 L 300,338 M 400,0 L 400,338" stroke="#182230" stroke-width="1"/>
+              <path
+                d="M 0,60 L 500,60 M 0,120 L 500,120 M 0,180 L 500,180 M 0,240 L 500,240 M 100,0 L 100,338 M 200,0 L 200,338 M 300,0 L 300,338 M 400,0 L 400,338"
+                stroke="#182230" stroke-width="1" />
 
               <!-- River path -->
-              <path d="M 0,210 Q 220,180 500,230" fill="none" stroke="#18314F" stroke-width="36"/>
-              <text x="30" y="215" font-family="'Mukta', sans-serif" font-size="11" font-weight="600" fill="#3D648F">इंद्रायणी नदी (Indrayani River)</text>
+              <path d="M 0,210 Q 220,180 500,230" fill="none" stroke="#18314F" stroke-width="36" />
+              <text x="30" y="215" font-family="'Mukta', sans-serif" font-size="11" font-weight="600"
+                fill="#3D648F">इंद्रायणी नदी (Indrayani River)</text>
 
               <!-- Heatmap Density Zones -->
               <!-- Critical Red Zone (Ghat) -->
-              <circle cx="180" cy="190" r="95" fill="url(#redZone)"/>
-              <circle cx="180" cy="190" r="6" fill="#C00000" stroke="#FFFFFF" stroke-width="2"/>
-              <text x="180" y="165" font-family="'Mukta', sans-serif" font-size="12" font-weight="700" fill="#FFA5A5" text-anchor="middle">Indrayani Ghat (88% Density)</text>
+              <circle cx="180" cy="190" r="95" fill="url(#redZone)" />
+              <circle cx="180" cy="190" r="6" fill="#C00000" stroke="#FFFFFF" stroke-width="2" />
+              <text x="180" y="165" font-family="'Mukta', sans-serif" font-size="12" font-weight="700" fill="#FFA5A5"
+                text-anchor="middle">Indrayani Ghat (88% Density)</text>
 
               <!-- High Orange Zone (Mandir Gate) -->
-              <circle cx="330" cy="110" r="80" fill="url(#orangeZone)"/>
-              <circle cx="330" cy="110" r="6" fill="#F26B2A" stroke="#FFFFFF" stroke-width="2"/>
-              <text x="330" y="90" font-family="'Mukta', sans-serif" font-size="12" font-weight="700" fill="#FFC9A3" text-anchor="middle">Mandir Gate (74% Density)</text>
+              <circle cx="330" cy="110" r="80" fill="url(#orangeZone)" />
+              <circle cx="330" cy="110" r="6" fill="#F26B2A" stroke="#FFFFFF" stroke-width="2" />
+              <text x="330" y="90" font-family="'Mukta', sans-serif" font-size="12" font-weight="700" fill="#FFC9A3"
+                text-anchor="middle">Mandir Gate (74% Density)</text>
 
               <!-- Moderate Green Zone (Annadan Mandap) -->
-              <circle cx="90" cy="90" r="65" fill="url(#greenZone)"/>
-              <circle cx="90" cy="90" r="5" fill="#2E9E5B" stroke="#FFFFFF" stroke-width="2"/>
-              <text x="90" y="75" font-family="'Mukta', sans-serif" font-size="11" font-weight="700" fill="#A7E8BD" text-anchor="middle">Annadan Mandap (42%)</text>
+              <circle cx="90" cy="90" r="65" fill="url(#greenZone)" />
+              <circle cx="90" cy="90" r="5" fill="#2E9E5B" stroke="#FFFFFF" stroke-width="2" />
+              <text x="90" y="75" font-family="'Mukta', sans-serif" font-size="11" font-weight="700" fill="#A7E8BD"
+                text-anchor="middle">Annadan Mandap (42%)</text>
 
               <!-- Volunteer Dots -->
-              <circle cx="215" cy="170" r="4.5" fill="#3B82F6" stroke="#FFFFFF" stroke-width="1.5"/>
-              <circle cx="150" cy="220" r="4.5" fill="#3B82F6" stroke="#FFFFFF" stroke-width="1.5"/>
-              <circle cx="300" cy="130" r="4.5" fill="#3B82F6" stroke="#FFFFFF" stroke-width="1.5"/>
-              <circle cx="360" cy="85" r="4.5" fill="#3B82F6" stroke="#FFFFFF" stroke-width="1.5"/>
-              <circle cx="260" cy="240" r="4.5" fill="#3B82F6" stroke="#FFFFFF" stroke-width="1.5"/>
+              <circle cx="215" cy="170" r="4.5" fill="#3B82F6" stroke="#FFFFFF" stroke-width="1.5" />
+              <circle cx="150" cy="220" r="4.5" fill="#3B82F6" stroke="#FFFFFF" stroke-width="1.5" />
+              <circle cx="300" cy="130" r="4.5" fill="#3B82F6" stroke="#FFFFFF" stroke-width="1.5" />
+              <circle cx="360" cy="85" r="4.5" fill="#3B82F6" stroke="#FFFFFF" stroke-width="1.5" />
+              <circle cx="260" cy="240" r="4.5" fill="#3B82F6" stroke="#FFFFFF" stroke-width="1.5" />
 
               <!-- Auto alert sent note / banner -->
               <g transform="translate(18, 260)">
-                <rect width="464" height="56" rx="10" fill="#2A1616" stroke="#C00000" stroke-width="1.5"/>
-                <circle cx="28" cy="28" r="10" fill="#C00000"/>
+                <rect width="464" height="56" rx="10" fill="#2A1616" stroke="#C00000" stroke-width="1.5" />
+                <circle cx="28" cy="28" r="10" fill="#C00000" />
                 <text x="28" y="32" font-size="12" fill="#FFFFFF" text-anchor="middle" font-weight="800">!</text>
-                <text x="48" y="24" font-family="'Mukta', sans-serif" font-size="13" font-weight="800" fill="#FFA5A5">AUTO ALERT SENT · 15-Minute Surge Prediction</text>
-                <text x="48" y="42" font-family="'Mukta', sans-serif" font-size="12" fill="#E2E8F0">Auto alert sent: Heavy surge predicted at Indrayani Ghat steps. Redirecting volunteer units.</text>
+                <text x="48" y="24" font-family="'Mukta', sans-serif" font-size="13" font-weight="800"
+                  fill="#FFA5A5">AUTO ALERT SENT · 15-Minute Surge Prediction</text>
+                <text x="48" y="42" font-family="'Mukta', sans-serif" font-size="12" fill="#E2E8F0">Auto alert sent:
+                  Heavy surge predicted at Indrayani Ghat steps. Redirecting volunteer units.</text>
               </g>
             </g>
           </svg>
@@ -1128,19 +1179,24 @@
           <div class="audience-card">
             <span class="audience-badge">Attendees (free)</span>
             <h3>Attendees</h3>
-            <p><strong>100% Free forever.</strong> Designed for senior citizens with low digital access (like Vithoba Kaka). Simple taps, voice AI in regional languages, large-text interface, and basic phone dial-in without needing a smartphone.</p>
+            <p><strong>100% Free forever.</strong> Designed for senior citizens with low digital access (like Vithoba
+              Kaka). Simple taps, voice AI in regional languages, large-text interface, and basic phone dial-in without
+              needing a smartphone.</p>
           </div>
 
           <div class="audience-card">
             <span class="audience-badge">Field Teams</span>
             <h3>NGOs and volunteers</h3>
-            <p><strong>Free for registered volunteers.</strong> Automated proximity-based dispatch, skill-matched tasks, turn-by-turn walking routes, and direct caller communication to assist people fast.</p>
+            <p><strong>Free for registered volunteers.</strong> Automated proximity-based dispatch, skill-matched tasks,
+              turn-by-turn walking routes, and direct caller communication to assist people fast.</p>
           </div>
 
           <div class="audience-card">
             <span class="audience-badge">Enterprise &amp; Civic</span>
             <h3>Event organisers</h3>
-            <p><strong>Free basic tier, subscription for advanced tools.</strong> Real-time GIS crowd heatmaps, 15-minute predictive surge alerts, district emergency broadcasts, and comprehensive post-event safety analytics.</p>
+            <p><strong>Free basic tier, subscription for advanced tools.</strong> Real-time GIS crowd heatmaps,
+              15-minute predictive surge alerts, district emergency broadcasts, and comprehensive post-event safety
+              analytics.</p>
           </div>
         </div>
       </div>
@@ -1151,7 +1207,8 @@
       <div class="container contact-inner">
         <h2 class="contact-title">Making your next gathering safer?</h2>
         <p class="contact-sub">
-          Let’s collaborate to protect lives at your next religious gathering, cultural festival, or public event. Reach out for a live pilot demonstration or partnership.
+          Let’s collaborate to protect lives at your next religious gathering, cultural festival, or public event. Reach
+          out for a live pilot demonstration or partnership.
         </p>
 
         <div class="contact-btns">
@@ -1171,7 +1228,8 @@
         </div>
 
         <footer class="footer">
-          <p>© 2026 SangamIQ Technologies. Prototype venture by students of MIT Academy of Engineering, Alandi, Pune. Not a replacement for 108/112.</p>
+          <p>© 2026 SangamIQ Technologies. Prototype venture by students of MIT Academy of Engineering, Alandi, Pune.
+            Not a replacement for 108/112.</p>
         </footer>
       </div>
     </section>
@@ -1187,7 +1245,7 @@
       phone: '+91 77218 86564', // tel link will automatically strip spaces
     };
 
-    const PROTOTYPE_URL = '#';
+    const PROTOTYPE_URL = 'https://sangamiq.onrender.com';
 
     // Populate contact info and configure links
     document.addEventListener('DOMContentLoaded', () => {
@@ -1251,4 +1309,5 @@
     });
   </script>
 </body>
+
 </html>

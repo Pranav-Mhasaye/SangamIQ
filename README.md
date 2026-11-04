@@ -2,7 +2,7 @@
 
 ## Live links
 - **Landing page:** https://pranav-mhasaye.github.io/SangamIQ/
-- **Working prototype:** (add Render URL after deploy)
+- **Working prototype:** https://sangamiq.onrender.com
 
 AI-assisted real-time help for large gatherings (built around Alandi / Ashadhi Wari, Pune).
 Three apps in one: **Attendee** (phone-style UI), **Volunteer** dashboard, **Organiser** control room.
