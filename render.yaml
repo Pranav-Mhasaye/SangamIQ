@@ -1,0 +1,12 @@
+services:
+  - type: web
+    name: sangamiq
+    runtime: node
+    plan: free
+    buildCommand: npm run setup && npm run build
+    startCommand: npm start
+    healthCheckPath: /api/health
+    envVars:
+      - key: NODE_VERSION
+        value: 20
+
