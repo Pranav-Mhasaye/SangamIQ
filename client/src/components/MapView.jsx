@@ -22,8 +22,9 @@ function Recenter({ center, zoom }) {
 // people: [{id, lat, lng, label, color}] (volunteers / requests as small dots)
 export default function MapView({ center, zoom = 16, markers = [], circles = [], people = [], me, onMarker, height = 260, recenter = true }) {
   const c = [center.lat, center.lng];
+  const isCompact = typeof height === 'number' ? height <= 300 : !String(height).includes('calc');
   return (
-    <div className="map" style={{ height }}>
+    <div className={`map ${isCompact ? 'map-compact' : ''}`} style={{ height }}>
       <MapContainer center={c} zoom={zoom} scrollWheelZoom zoomControl={false} attributionControl>
         <TileLayer attribution="&copy; OpenStreetMap contributors" url="https://tile.openstreetmap.org/{z}/{x}/{y}.png" maxZoom={19} />
         {recenter && <Recenter center={c} />}

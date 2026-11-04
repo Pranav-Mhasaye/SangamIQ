@@ -82,6 +82,24 @@ small { display: block; color: var(--muted); font-size: 0.82rem; }
 
 .map { position: relative; z-index: 0; border-radius: 14px; overflow: hidden; border: 1px solid var(--line); min-height: 160px; flex: none; }
 .map .leaflet-container { height: 100%; width: 100%; font-family: inherit; }
+.map .leaflet-control-attribution {
+  font-size: 9px !important;
+  line-height: 1.1 !important;
+  background: rgba(255, 255, 255, 0.75) !important;
+  padding: 1px 5px !important;
+  border-radius: 4px 0 0 0 !important;
+  max-width: 140px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  transition: max-width 0.2s ease, background 0.2s ease;
+}
+.map .leaflet-control-attribution:hover,
+.map .leaflet-control-attribution:focus-within {
+  max-width: 100%;
+  white-space: normal;
+  background: rgba(255, 255, 255, 0.95) !important;
+}
 .pin-wrap { background: none; border: 0; }
 .pin { display: grid; place-items: center; border-radius: 50%; background: var(--c); color: #fff; font-weight: 800; font-size: 14px; border: 3px solid #fff; box-shadow: 0 2px 8px rgba(0, 0, 0, 0.35); }
 .pin.dim { opacity: 0.55; }
@@ -95,19 +113,40 @@ small { display: block; color: var(--muted); font-size: 0.82rem; }
 
 /* ---------- buttons / bars ---------- */
 .cta-bar { display: flex; gap: 10px; padding: 10px 14px; border-top: 1px solid var(--line); background: #fff; }
+.cta-bar.compact { padding: 6px 12px; gap: 8px; }
 .cta-bar.col { flex-direction: column; }
 .btn { display: inline-flex; align-items: center; justify-content: center; gap: 8px; min-height: 52px; padding: 0 18px; border: 0; border-radius: 14px; background: var(--red); color: #fff; font-weight: 700; text-decoration: none; }
 .btn:disabled { opacity: 0.45; cursor: not-allowed; }
 .btn.small { min-height: 44px; padding: 0 14px; }
 .btn.ghost { background: #fff; color: var(--red); border: 2px solid var(--red); }
 .btn.sos { flex: 1; flex-direction: column; gap: 0; min-height: 60px; background: var(--red); }
+.cta-bar.compact .btn.sos { min-height: 48px; padding: 4px 12px; }
 .btn.sos:active { background: var(--red-dark); }
 .sos-main { font-size: 1.2rem; }
+.cta-bar.compact .sos-main { font-size: 1.05rem; }
 .btn.sos small { color: #ffd9d9; }
+.cta-bar.compact .btn.sos small { font-size: 0.72rem; }
 .btn.voice { width: 60px; padding: 0; background: var(--orange); }
+.cta-bar.compact .btn.voice { width: 48px; min-height: 48px; }
 .tabbar { display: grid; grid-template-columns: repeat(4, 1fr); border-top: 1px solid var(--line); background: #fff; padding-bottom: env(safe-area-inset-bottom, 0); }
 .tabbar button { display: grid; justify-items: center; gap: 2px; padding: 8px 0 6px; border: 0; background: none; color: var(--muted); font-size: 0.78rem; font-weight: 600; }
 .tabbar button.on { color: var(--red); }
+
+@media (max-height: 700px) {
+  .phone { height: 100dvh; border-radius: 0; margin-top: 0; }
+  .scroll { padding: 10px; gap: 8px; }
+  .cta-bar { padding: 5px 10px; gap: 6px; }
+  .btn.sos { min-height: 44px; padding: 3px 8px; }
+  .sos-main { font-size: 0.98rem; }
+  .btn.sos small { font-size: 0.68rem; line-height: 1.1; }
+  .btn.voice { width: 44px; min-height: 44px; }
+  .tabbar button { padding: 4px 0 2px; font-size: 0.7rem; }
+  .tabbar button svg { width: 18px; height: 18px; }
+  .topbar { padding: 8px 10px; }
+  .tiles { gap: 6px; }
+  .tile { min-height: 56px; padding: 6px 2px; font-size: 0.75rem; }
+  .tile .ticon { width: 30px; height: 30px; }
+}
 
 /* ---------- request / detail / track ---------- */
 .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }

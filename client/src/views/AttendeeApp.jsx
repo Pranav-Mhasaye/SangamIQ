@@ -63,7 +63,6 @@ export default function AttendeeApp({ onExit }) {
           <select className="lang" value={lang} onChange={(e) => setLang(e.target.value)} aria-label={t('language')}>
             {LANGS.map((l) => <option key={l.id} value={l.id}>{l.label}</option>)}
           </select>
-          <button className="icon-btn" onClick={onExit} aria-label="Switch role"><ChevronRight size={20} style={{ transform: 'rotate(180deg)' }} /></button>
         </div>
       </header>
 
@@ -119,15 +118,15 @@ export default function AttendeeApp({ onExit }) {
         )}
 
         {tab === 'alerts' && <AlertsTab alerts={alerts} />}
-        {tab === 'profile' && <ProfileTab />}
+        {tab === 'profile' && <ProfileTab onExit={onExit} />}
       </main>
 
       {(tab === 'home' || tab === 'map') && (
-        <div className="cta-bar">
+        <div className="cta-bar compact">
           <button className="btn sos" onClick={() => setScreen({ name: 'request' })}>
             <span className="sos-main">{t('requestHelp')}</span><small>{t('tapEmergency')}</small>
           </button>
-          <button className="btn voice" onClick={() => setVoice(true)} aria-label={t('speak')}><Mic size={26} /></button>
+          <button className="btn voice" onClick={() => setVoice(true)} aria-label={t('speak')}><Mic size={24} /></button>
         </div>
       )}
 
@@ -298,8 +297,9 @@ function AlertsTab({ alerts }) {
   );
 }
 
-function ProfileTab() {
+function ProfileTab({ onExit }) {
   const { t, lang, setLang, large, setLarge, pos, useRealGps, profile, setProfile } = useApp();
+  const [confirming, setConfirming] = useState(false);
   return (
     <div className="form">
       <label className="field"><span>{t('yourName')}</span><input value={profile.name} onChange={(e) => setProfile({ ...profile, name: e.target.value })} /></label>
@@ -309,6 +309,17 @@ function ProfileTab() {
       <label className="switch"><input type="checkbox" checked={large} onChange={(e) => setLarge(e.target.checked)} /><span>{t('largeText')}</span></label>
       <label className="switch"><input type="checkbox" checked={pos.real} onChange={(e) => useRealGps(e.target.checked)} /><span>{t('useGps')}</span></label>
       {profile.contact && <a className="btn ghost" href={`tel:${profile.contact.replace(/\s/g, '')}`}><PhoneCall size={18} /> {profile.contact}</a>}
+
+      <div style={{ marginTop: '16px', paddingTop: '16px', borderTop: '1px solid var(--line)' }}>
+        {confirming ? (
+          <div className="row">
+            <button className="btn small" onClick={onExit}>{t('confirmChangeRole')}</button>
+            <button className="btn small ghost" onClick={() => setConfirming(false)}>{t('cancel')}</button>
+          </div>
+        ) : (
+          <button className="btn ghost" style={{ width: '100%' }} onClick={() => setConfirming(true)}>{t('changeRole')}</button>
+        )}
+      </div>
     </div>
   );
 }
