@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { Home, Map as MapIcon, Bell, User, Mic, PhoneCall, Navigation, ArrowLeft, MapPin, LocateFixed, ShieldCheck, Siren, ChevronRight, Check } from 'lucide-react';
 import { api, useLive, ago } from '../api';
 import { useApp } from '../ctx';
+import { useAuth } from '../auth';
 import { LANGS } from '../i18n';
 import { TYPE_META, TYPE_IDS } from '../types';
 import MapView from '../components/MapView';
@@ -143,6 +144,7 @@ export default function AttendeeApp({ onExit }) {
 
 function RequestScreen({ initialType, onBack, onSent }) {
   const { t, lang, pos, profile } = useApp();
+  const { deviceId } = useAuth();
   const [type, setType] = useState(initialType || null);
   const [emergency, setEmergency] = useState(false);
   const [note, setNote] = useState('');
@@ -163,6 +165,7 @@ function RequestScreen({ initialType, onBack, onSent }) {
           lat: pos.lat,
           lng: pos.lng,
           name: profile.name,
+          deviceId,
         },
       });
       onSent(r.id);
@@ -299,9 +302,27 @@ function AlertsTab({ alerts }) {
 
 function ProfileTab({ onExit }) {
   const { t, lang, setLang, large, setLarge, pos, useRealGps, profile, setProfile } = useApp();
+  const { user, guestMode, logout } = useAuth();
   const [confirming, setConfirming] = useState(false);
   return (
     <div className="form">
+      {user ? (
+        <div className="card" style={{ padding: '12px', marginBottom: '12px' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <div>
+              <small className="muted">{t('loggedInAs')}</small>
+              <b style={{ display: 'block' }}>{user.phone || user.name || user.id}</b>
+            </div>
+            <button className="btn small ghost" onClick={logout}>{t('signOut')}</button>
+          </div>
+        </div>
+      ) : guestMode ? (
+        <div className="banner info" style={{ marginBottom: '12px' }}>
+          <ShieldCheck size={18} />
+          <span>{t('guestBadge')}</span>
+        </div>
+      ) : null}
+
       <label className="field"><span>{t('yourName')}</span><input value={profile.name} onChange={(e) => setProfile({ ...profile, name: e.target.value })} /></label>
       <label className="field"><span>{t('emergencyContact')}</span><input inputMode="tel" value={profile.contact} onChange={(e) => setProfile({ ...profile, contact: e.target.value })} /></label>
       <div className="field"><span>{t('language')}</span>
