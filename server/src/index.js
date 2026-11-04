@@ -3,13 +3,25 @@ import cors from 'cors';
 import cookieParser from 'cookie-parser';
 import helmet from 'helmet';
 import rateLimit from 'express-rate-limit';
-import { db, uid, TYPES, CENTER, seed } from './data.js';
-import { distanceM, etaMin } from './geo.js';
+import { TYPES, CENTER, seed } from './data.js';
 import { addClient, broadcast } from './bus.js';
-import { classify, replyFor, isCritical } from './voice.js';
+import { classify, replyFor } from './voice.js';
 import { snapshot, startCrowdSim, surgeZone } from './crowd.js';
 import authRouter from './auth/routes.js';
 import { requireAuth, optionalAuth } from './auth/middleware.js';
+import { initDb, isMemory } from './repos/db.js';
+import { nearestServices, getServiceById } from './repos/servicesRepo.js';
+import { getAllVolunteers, getVolunteerById, updateVolunteer } from './repos/volunteersRepo.js';
+import {
+  createHelpRequest,
+  getHelpRequestById,
+  listHelpRequests,
+  acceptHelpRequest,
+  closeHelpRequest,
+  recomputeOpenMatches,
+} from './repos/requestsRepo.js';
+import { getAllAlerts, createAlert } from './repos/alertsRepo.js';
+import { getStats } from './repos/statsRepo.js';
 
 const app = express();
 
@@ -27,62 +39,6 @@ const authLimiter = rateLimit({ windowMs: 15 * 60 * 1000, max: 20, message: { er
 const num = (v, d) => (Number.isFinite(Number(v)) && v !== '' && v != null ? Number(v) : d);
 const here = (q) => ({ lat: num(q.lat, CENTER.lat), lng: num(q.lng, CENTER.lng) });
 
-// ---------- matching (the "AI-driven real-time matching") ----------
-function nearestServices(type, pos, limit = 50) {
-  return db.services
-    .filter((s) => !type || s.type === type)
-    .map((s) => {
-      const d = distanceM(pos, s);
-      return { ...s, distanceM: d, etaMin: etaMin(d) };
-    })
-    .sort((a, b) => a.distanceM - b.distanceM)
-    .slice(0, limit);
-}
-
-function matchVolunteers(type, pos, limit = 3, critical = false) {
-  return db.volunteers
-    .filter((v) => v.online && v.verified && v.status === 'approved')
-    .map((v) => {
-      const d = distanceM(pos, v);
-      const directFit = v.skills.includes(type) || (type === 'medical' && v.skills.includes('first-aid'));
-      const medicalFit = critical && (v.skills.includes('medical') || v.skills.includes('first-aid'));
-      const skillFit = directFit || medicalFit;
-      const skillPenalty = directFit ? 0 : (medicalFit ? 150 : 600);
-      const busy = v.activeRequestId ? 400 : 0; // prefer free volunteers
-      const score = d + skillPenalty + busy; // lower is better
-      return { volunteerId: v.id, name: v.name, phone: v.phone, distanceM: d, etaMin: etaMin(d), skillFit, score };
-    })
-    .sort((a, b) => a.score - b.score)
-    .slice(0, limit)
-    .map(({ score, ...rest }) => rest);
-}
-
-const withVol = (r) => ({
-  ...r,
-  volunteer: r.acceptedBy ? db.volunteers.find((v) => v.id === r.acceptedBy) || null : null,
-  matched: r.status === 'open' ? matchVolunteers(r.type, r, 3, r.priority === 'critical') : (r.matched || []),
-});
-
-function createRequest({ type, lat, lng, note = '', language = 'en', channel = 'app', emergency = false, name = '', priority, deviceId = null, userId = null }) {
-  const chosenType = type || (emergency ? 'medical' : null);
-  if (!TYPES.includes(chosenType)) throw Object.assign(new Error(`type must be one of ${TYPES.join(', ')}`), { status: 400 });
-  const pos = { lat: num(lat, CENTER.lat), lng: num(lng, CENTER.lng) };
-  const critical = Boolean(emergency) || isCritical(note);
-  const finalPriority = priority || (critical ? 'critical' : (chosenType === 'medical' ? 'high' : 'normal'));
-  const req = {
-    id: uid('req'), type: chosenType, ...pos, note: String(note).slice(0, 280), language, channel, requester: String(name).slice(0, 60),
-    priority: finalPriority,
-    status: 'open', createdAt: new Date().toISOString(), acceptedBy: null, acceptedAt: null, completedAt: null,
-    matched: matchVolunteers(chosenType, pos, 3, critical),
-    nearestService: nearestServices(chosenType, pos, 1)[0] || null,
-    deviceId: deviceId || null,
-    userId: userId || null,
-  };
-  db.requests.unshift(req);
-  broadcast('request:new', withVol(req));
-  return withVol(req);
-}
-
 // ---------- auth routes ----------
 app.use('/api/auth/send-otp', otpLimiter);
 app.use('/api/auth/verify-otp', authLimiter);
@@ -90,177 +46,230 @@ app.use('/api/auth/login-organiser', authLimiter);
 app.use('/api/auth', authRouter);
 
 // ---------- public routes ----------
-app.get('/api/health', (_req, res) => res.json({ ok: true, center: CENTER, types: TYPES }));
+app.get('/api/health', (_req, res) =>
+  res.json({
+    ok: true,
+    center: CENTER,
+    types: TYPES,
+    storage: isMemory() ? 'in-memory' : 'postgresql+postgis',
+  })
+);
 app.get('/api/stream', addClient);
 
-app.get('/api/services', (req, res) => {
-  const { type } = req.query;
-  res.json(nearestServices(type, here(req.query)));
+app.get('/api/services', async (req, res) => {
+  try {
+    const { type } = req.query;
+    const services = await nearestServices(type, here(req.query));
+    res.json(services);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
 });
 
-app.get('/api/services/:id', (req, res) => {
-  const s = db.services.find((x) => x.id === req.params.id);
-  if (!s) return res.status(404).json({ error: 'service not found' });
-  const pos = here(req.query);
-  const d = distanceM(pos, s);
-  const contact = matchVolunteers(s.type, s, 1)[0] || null; // closest online volunteer who can help at this place
-  res.json({ ...s, distanceM: d, etaMin: etaMin(d), contact });
+app.get('/api/services/:id', async (req, res) => {
+  try {
+    const s = await getServiceById(req.params.id, here(req.query));
+    if (!s) return res.status(404).json({ error: 'service not found' });
+    res.json(s);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
 });
 
 // ---------- request creation (guest or authed) ----------
-app.post('/api/requests', requestLimiter, optionalAuth, (req, res) => {
+app.post('/api/requests', requestLimiter, optionalAuth, async (req, res) => {
   try {
     const body = req.body || {};
     body.userId = req.user?.sub || null;
-    res.status(201).json(createRequest(body));
-  } catch (e) { res.status(e.status || 500).json({ error: e.message }); }
-});
-
-app.get('/api/requests', optionalAuth, (req, res) => {
-  const { status, volunteerId } = req.query;
-  const me = volunteerId ? db.volunteers.find((v) => v.id === volunteerId) : null;
-  let list = db.requests.map(withVol);
-  if (status) list = list.filter((r) => status.split(',').includes(r.status));
-  if (me) {
-    list = list.map((r) => {
-      const d = distanceM(me, r);
-      return { ...r, distanceM: d, etaMin: etaMin(d), matchedToMe: r.matched.some((m) => m.volunteerId === me.id) };
-    });
+    const request = await createHelpRequest(body);
+    res.status(201).json(request);
+  } catch (e) {
+    res.status(e.status || 500).json({ error: e.message });
   }
-  res.json(list);
 });
 
-app.get('/api/requests/:id', (req, res) => {
-  const r = db.requests.find((x) => x.id === req.params.id);
-  if (!r) return res.status(404).json({ error: 'request not found' });
-  res.json(withVol(r));
+app.get('/api/requests', optionalAuth, async (req, res) => {
+  try {
+    const { status, volunteerId } = req.query;
+    const list = await listHelpRequests({ status, volunteerId });
+    res.json(list);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.get('/api/requests/:id', async (req, res) => {
+  try {
+    const r = await getHelpRequestById(req.params.id);
+    if (!r) return res.status(404).json({ error: 'request not found' });
+    res.json(r);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
 });
 
 // ---------- volunteer actions (requires volunteer role) ----------
-app.post('/api/requests/:id/accept', requireAuth('volunteer'), (req, res) => {
-  const r = db.requests.find((x) => x.id === req.params.id);
-  // Use the volunteer linked to the authenticated user
-  const volunteerId = req.user.volunteerId || req.body?.volunteerId;
-  const v = db.volunteers.find((x) => x.id === volunteerId);
-  if (!r || !v) return res.status(404).json({ error: 'request or volunteer not found' });
-  if (v.status !== 'approved') return res.status(403).json({ error: 'Volunteer not approved' });
-  if (r.status !== 'open') return res.status(409).json({ error: 'request already taken' });
-  r.status = 'accepted';
-  r.acceptedBy = v.id;
-  r.acceptedAt = new Date().toISOString();
-  v.activeRequestId = r.id;
-  broadcast('request:update', withVol(r));
-  broadcast('volunteer:update', v);
-  res.json(withVol(r));
+app.post('/api/requests/:id/accept', requireAuth('volunteer'), async (req, res) => {
+  try {
+    const volunteerId = req.user.volunteerId || req.body?.volunteerId;
+    const result = await acceptHelpRequest(req.params.id, volunteerId);
+    if (result.error === 'not_found') return res.status(404).json({ error: 'request or volunteer not found' });
+    if (result.error === 'not_approved') return res.status(403).json({ error: 'Volunteer not approved' });
+    if (result.error === 'conflict') return res.status(409).json({ error: 'request already taken' });
+    res.json(result.request);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
 });
 
 function close(status) {
-  return (req, res) => {
-    const r = db.requests.find((x) => x.id === req.params.id);
-    if (!r) return res.status(404).json({ error: 'request not found' });
-    if (['completed', 'cancelled'].includes(r.status)) return res.json(withVol(r));
-    r.status = status;
-    r.completedAt = new Date().toISOString();
-    const v = db.volunteers.find((x) => x.id === r.acceptedBy);
-    if (v && v.activeRequestId === r.id) { v.activeRequestId = null; broadcast('volunteer:update', v); }
-    broadcast('request:update', withVol(r));
-    res.json(withVol(r));
+  return async (req, res) => {
+    try {
+      const closed = await closeHelpRequest(req.params.id, status);
+      if (!closed) return res.status(404).json({ error: 'request not found' });
+      res.json(closed);
+    } catch (err) {
+      res.status(500).json({ error: err.message });
+    }
   };
 }
 app.post('/api/requests/:id/complete', requireAuth('volunteer', 'organiser', 'admin'), close('completed'));
 app.post('/api/requests/:id/cancel', optionalAuth, close('cancelled'));
 
 // ---------- volunteer self-management ----------
-app.get('/api/volunteers', optionalAuth, (_req, res) => res.json(db.volunteers));
-app.patch('/api/volunteers/:id', requireAuth('volunteer', 'organiser', 'admin'), (req, res) => {
-  const v = db.volunteers.find((x) => x.id === req.params.id);
-  if (!v) return res.status(404).json({ error: 'volunteer not found' });
-
-  // Volunteers can only update their own record
-  if (req.user.role === 'volunteer' && req.user.volunteerId !== v.id) {
-    return res.status(403).json({ error: 'Cannot update another volunteer' });
+app.get('/api/volunteers', optionalAuth, async (_req, res) => {
+  try {
+    const volunteers = await getAllVolunteers();
+    res.json(volunteers);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
   }
+});
 
-  const prevOnline = v.online;
-  if (typeof req.body?.online === 'boolean') v.online = req.body.online;
-  if (Number.isFinite(req.body?.lat) && Number.isFinite(req.body?.lng)) { v.lat = req.body.lat; v.lng = req.body.lng; }
-  broadcast('volunteer:update', v);
+app.patch('/api/volunteers/:id', requireAuth('volunteer', 'organiser', 'admin'), async (req, res) => {
+  try {
+    const v = await getVolunteerById(req.params.id);
+    if (!v) return res.status(404).json({ error: 'volunteer not found' });
 
-  // If online status or location changed, recompute matches and notify listeners
-  if (prevOnline !== v.online || req.body?.lat != null) {
-    for (const r of db.requests) {
-      if (r.status === 'open') {
-        r.matched = matchVolunteers(r.type, r, 3, r.priority === 'critical');
-        broadcast('request:update', withVol(r));
-      }
+    // Volunteers can only update their own record
+    if (req.user.role === 'volunteer' && req.user.volunteerId !== v.id) {
+      return res.status(403).json({ error: 'Cannot update another volunteer' });
     }
+
+    const prevOnline = v.online;
+    const patch = {};
+    if (typeof req.body?.online === 'boolean') patch.online = req.body.online;
+    if (Number.isFinite(req.body?.lat) && Number.isFinite(req.body?.lng)) {
+      patch.lat = req.body.lat;
+      patch.lng = req.body.lng;
+    }
+
+    const updated = await updateVolunteer(v.id, patch);
+    broadcast('volunteer:update', updated);
+
+    // If online status or location changed, recompute matches and notify listeners
+    if (prevOnline !== updated.online || patch.lat != null) {
+      await recomputeOpenMatches();
+    }
+
+    res.json(updated);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
   }
-  res.json(v);
 });
 
 // ---------- alerts (public read, organiser write) ----------
-app.get('/api/alerts', (_req, res) => res.json(db.alerts));
-app.post('/api/alerts', requireAuth('organiser', 'admin'), (req, res) => {
-  const { level = 'info', title, message, hi, mr, zone = null } = req.body || {};
-  if (!title || !message) return res.status(400).json({ error: 'title and message are required' });
-  const alert = {
-    id: uid('alt'), level: ['info', 'warning', 'emergency'].includes(level) ? level : 'info', zone, auto: false,
-    createdAt: new Date().toISOString(), title: String(title).slice(0, 80),
-    messages: { en: String(message).slice(0, 300), hi: String(hi || message).slice(0, 300), mr: String(mr || message).slice(0, 300) },
-  };
-  db.alerts.unshift(alert);
-  broadcast('alert:new', alert);
-  res.status(201).json(alert);
+app.get('/api/alerts', async (_req, res) => {
+  try {
+    const alerts = await getAllAlerts();
+    res.json(alerts);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.post('/api/alerts', requireAuth('organiser', 'admin'), async (req, res) => {
+  try {
+    const { level = 'info', title, message, hi, mr, zone = null } = req.body || {};
+    if (!title || !message) return res.status(400).json({ error: 'title and message are required' });
+    const alert = await createAlert({ level, title, message, hi, mr, zone });
+    res.status(201).json(alert);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
 });
 
 // ---------- crowd (public read, organiser surge) ----------
-app.get('/api/crowd', (_req, res) => res.json(snapshot()));
-app.post('/api/crowd/:id/surge', requireAuth('organiser', 'admin'), (req, res) => {
-  const z = surgeZone(req.params.id);
-  if (!z) return res.status(404).json({ error: 'zone not found' });
-  res.json({ ok: true, zone: z.id });
+app.get('/api/crowd', async (_req, res) => {
+  try {
+    const sn = await snapshot();
+    res.json(sn);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.post('/api/crowd/:id/surge', requireAuth('organiser', 'admin'), async (req, res) => {
+  try {
+    const z = await surgeZone(req.params.id);
+    if (!z) return res.status(404).json({ error: 'zone not found' });
+    res.json({ ok: true, zone: z.id });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
 });
 
 // ---------- voice AI (guest or authed) ----------
-app.post('/api/voice/intent', requestLimiter, optionalAuth, (req, res) => {
-  const { text = '', language = 'en', lat, lng, create = true, channel = 'voice' } = req.body || {};
-  const pos = { lat: num(lat, CENTER.lat), lng: num(lng, CENTER.lng) };
-  const parsed = classify(text);
-  const nearest = parsed.type ? nearestServices(parsed.type, pos, 1)[0] : null;
-  const reply = replyFor(parsed, language, nearest);
-  let request = null;
-  if (create && (parsed.intent === 'request_help' || parsed.intent === 'generic_help')) {
-    request = createRequest({
-      type: parsed.type,
-      ...pos,
-      note: text,
-      language,
-      channel,
-      emergency: parsed.emergency,
-      priority: parsed.priority,
-      userId: req.user?.sub || null,
-    });
+app.post('/api/voice/intent', requestLimiter, optionalAuth, async (req, res) => {
+  try {
+    const { text = '', language = 'en', lat, lng, create = true, channel = 'voice' } = req.body || {};
+    const pos = { lat: num(lat, CENTER.lat), lng: num(lng, CENTER.lng) };
+    const parsed = classify(text);
+    const nearestList = parsed.type ? await nearestServices(parsed.type, pos, 1) : [];
+    const nearest = nearestList[0] || null;
+    const reply = replyFor(parsed, language, nearest);
+    let request = null;
+
+    if (create && (parsed.intent === 'request_help' || parsed.intent === 'generic_help')) {
+      request = await createHelpRequest({
+        type: parsed.type,
+        ...pos,
+        note: text,
+        language,
+        channel,
+        emergency: parsed.emergency,
+        priority: parsed.priority,
+        userId: req.user?.sub || null,
+      });
+    }
+
+    res.json({ ...parsed, reply, nearest, request });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
   }
-  res.json({ ...parsed, reply, nearest, request });
 });
 
 // ---------- stats (organiser only) ----------
-app.get('/api/stats', requireAuth('organiser', 'admin'), (_req, res) => {
-  const accepted = db.requests.filter((r) => r.acceptedAt);
-  const avgSec = accepted.length
-    ? Math.round(accepted.reduce((s, r) => s + (new Date(r.acceptedAt) - new Date(r.createdAt)) / 1000, 0) / accepted.length)
-    : 0;
-  const count = (st) => db.requests.filter((r) => r.status === st).length;
-  res.json({
-    open: count('open'), inProgress: count('accepted'), completed: count('completed'),
-    critical: db.requests.filter((r) => r.priority === 'critical' && ['open', 'accepted'].includes(r.status)).length,
-    volunteersOnline: db.volunteers.filter((v) => v.online).length, volunteersTotal: db.volunteers.length,
-    avgResponseSec: avgSec, voiceRequests: db.requests.filter((r) => r.channel === 'voice').length,
-  });
+app.get('/api/stats', requireAuth('organiser', 'admin'), async (_req, res) => {
+  try {
+    const stats = await getStats();
+    res.json(stats);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
 });
 
 // ---------- demo reset (organiser/admin only) ----------
-app.post('/api/demo/reset', requireAuth('organiser', 'admin'), (_req, res) => { seed(); broadcast('request:update', {}); broadcast('volunteer:update', {}); res.json({ ok: true }); });
+app.post('/api/demo/reset', requireAuth('organiser', 'admin'), async (_req, res) => {
+  try {
+    seed();
+    broadcast('request:update', {});
+    broadcast('volunteer:update', {});
+    res.json({ ok: true });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
 
 // serve the built client in production (npm run build && npm start)
 import path from 'node:path';
@@ -273,5 +282,11 @@ if (fs.existsSync(dist)) {
 }
 
 const PORT = process.env.PORT || 3001;
-startCrowdSim();
-app.listen(PORT, () => console.log(`SangamIQ API running on http://localhost:${PORT}`));
+
+async function bootstrap() {
+  await initDb();
+  startCrowdSim();
+  app.listen(PORT, () => console.log(`SangamIQ API running on http://localhost:${PORT}`));
+}
+
+bootstrap();

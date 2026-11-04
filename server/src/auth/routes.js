@@ -3,29 +3,30 @@
 
 import { Router } from 'express';
 import bcrypt from 'bcryptjs';
-import { db, uid } from '../data.js';
+import { uid } from '../data.js';
 import { otpProvider } from './otp.js';
 import { signAccess, createRefresh, consumeRefresh, revokeRefresh, setRefreshCookie, clearRefreshCookie, REFRESH_COOKIE } from './jwt.js';
 import { requireAuth } from './middleware.js';
 import { broadcast } from '../bus.js';
+import {
+  findUserByPhone,
+  findUserByEmail,
+  findUserById,
+  createUser,
+  updateUser,
+} from '../repos/usersRepo.js';
+import {
+  getAllVolunteers,
+  getVolunteerById,
+  updateVolunteer,
+  createVolunteer,
+} from '../repos/volunteersRepo.js';
 
 const router = Router();
 
-// ---------- helpers ----------
-
-function findUserByPhone(phone) {
-  return db.users.find((u) => u.phone === phone);
-}
-function findUserByEmail(email) {
-  return db.users.find((u) => u.email === email.toLowerCase());
-}
-function findUserById(id) {
-  return db.users.find((u) => u.id === id);
-}
-
-function issueTokens(res, user) {
+async function issueTokens(res, user) {
   const accessToken = signAccess(user);
-  const refreshToken = createRefresh(user.id);
+  const refreshToken = await createRefresh(user.id);
   setRefreshCookie(res, refreshToken);
   return { accessToken, user: publicUser(user) };
 }
@@ -65,19 +66,19 @@ router.post('/verify-otp', async (req, res) => {
   const valid = await otpProvider.verify(normalized, otp);
   if (!valid) return res.status(401).json({ error: 'Invalid or expired OTP' });
 
-  let user = findUserByPhone(normalized);
+  let user = await findUserByPhone(normalized);
   if (!user) {
     // Auto-create attendee account on first login
-    user = {
+    user = await createUser({
       id: uid('usr'), phone: normalized, email: null, passwordHash: null,
       role: role === 'volunteer' ? 'volunteer' : 'attendee',
-      name: '', createdAt: new Date().toISOString(),
+      name: '',
       volunteerId: null, volunteerStatus: null,
-    };
-    db.users.push(user);
+    });
   }
 
-  res.json(issueTokens(res, user));
+  const tokens = await issueTokens(res, user);
+  res.json(tokens);
 });
 
 // POST /api/auth/register-volunteer  { phone, otp, name, skills[] }
@@ -89,38 +90,40 @@ router.post('/register-volunteer', async (req, res) => {
   const valid = await otpProvider.verify(normalized, otp);
   if (!valid) return res.status(401).json({ error: 'Invalid or expired OTP' });
 
-  let user = findUserByPhone(normalized);
+  let user = await findUserByPhone(normalized);
 
   if (user && user.role === 'volunteer') {
     // Already registered as volunteer
-    return res.json(issueTokens(res, user));
+    const tokens = await issueTokens(res, user);
+    return res.json(tokens);
   }
 
   // Create volunteer record (status: pending, verified: false until approved)
-  const vol = {
+  const vol = await createVolunteer({
     id: uid('vol'), name, lat: 18.6764, lng: 73.8977, skills: Array.isArray(skills) ? skills : [],
     online: false, verified: false, status: 'pending',
     phone: normalized, activeRequestId: null,
-  };
-  db.volunteers.push(vol);
+  });
 
   if (user) {
     // Upgrade existing attendee to volunteer
-    user.role = 'volunteer';
-    user.name = name;
-    user.volunteerId = vol.id;
-    user.volunteerStatus = 'pending';
+    user = await updateUser(user.id, {
+      role: 'volunteer',
+      name,
+      volunteerId: vol.id,
+      volunteerStatus: 'pending',
+    });
   } else {
-    user = {
+    user = await createUser({
       id: uid('usr'), phone: normalized, email: null, passwordHash: null,
-      role: 'volunteer', name, createdAt: new Date().toISOString(),
+      role: 'volunteer', name,
       volunteerId: vol.id, volunteerStatus: 'pending',
-    };
-    db.users.push(user);
+    });
   }
 
   broadcast('volunteer:update', vol);
-  res.status(201).json(issueTokens(res, user));
+  const tokens = await issueTokens(res, user);
+  res.status(201).json(tokens);
 });
 
 // ---------- Organiser email + password login ----------
@@ -130,30 +133,31 @@ router.post('/login-organiser', async (req, res) => {
   const { email, password } = req.body || {};
   if (!email || !password) return res.status(400).json({ error: 'email and password required' });
 
-  const user = findUserByEmail(email);
+  const user = await findUserByEmail(email);
   if (!user || !user.passwordHash) return res.status(401).json({ error: 'Invalid credentials' });
   if (user.role !== 'organiser' && user.role !== 'admin') return res.status(401).json({ error: 'Invalid credentials' });
 
   const match = await bcrypt.compare(password, user.passwordHash);
   if (!match) return res.status(401).json({ error: 'Invalid credentials' });
 
-  res.json(issueTokens(res, user));
+  const tokens = await issueTokens(res, user);
+  res.json(tokens);
 });
 
 // ---------- Token refresh ----------
 
 // POST /api/auth/refresh
-router.post('/refresh', (req, res) => {
+router.post('/refresh', async (req, res) => {
   const token = req.cookies?.[REFRESH_COOKIE];
   if (!token) return res.status(401).json({ error: 'No refresh token' });
 
-  const userId = consumeRefresh(token);
+  const userId = await consumeRefresh(token);
   if (!userId) {
     clearRefreshCookie(res);
     return res.status(401).json({ error: 'Invalid or expired refresh token' });
   }
 
-  const user = findUserById(userId);
+  let user = await findUserById(userId);
   if (!user) {
     clearRefreshCookie(res);
     return res.status(401).json({ error: 'User not found' });
@@ -161,19 +165,20 @@ router.post('/refresh', (req, res) => {
 
   // Re-sync volunteer status
   if (user.volunteerId) {
-    const vol = db.volunteers.find((v) => v.id === user.volunteerId);
+    const vol = await getVolunteerById(user.volunteerId);
     if (vol) user.volunteerStatus = vol.status;
   }
 
-  res.json(issueTokens(res, user));
+  const tokens = await issueTokens(res, user);
+  res.json(tokens);
 });
 
 // ---------- Logout ----------
 
 // POST /api/auth/logout
-router.post('/logout', (req, res) => {
+router.post('/logout', async (req, res) => {
   const token = req.cookies?.[REFRESH_COOKIE];
-  if (token) revokeRefresh(token);
+  if (token) await revokeRefresh(token);
   clearRefreshCookie(res);
   res.json({ ok: true });
 });
@@ -181,13 +186,13 @@ router.post('/logout', (req, res) => {
 // ---------- Current user ----------
 
 // GET /api/auth/me
-router.get('/me', requireAuth(), (req, res) => {
-  const user = findUserById(req.user.sub);
+router.get('/me', requireAuth(), async (req, res) => {
+  const user = await findUserById(req.user.sub);
   if (!user) return res.status(404).json({ error: 'User not found' });
 
   // Re-sync volunteer status
   if (user.volunteerId) {
-    const vol = db.volunteers.find((v) => v.id === user.volunteerId);
+    const vol = await getVolunteerById(user.volunteerId);
     if (vol) user.volunteerStatus = vol.status;
   }
 
@@ -197,22 +202,21 @@ router.get('/me', requireAuth(), (req, res) => {
 // ---------- Volunteer status management (organiser only) ----------
 
 // GET /api/auth/volunteers/pending
-router.get('/volunteers/pending', requireAuth('organiser', 'admin'), (_req, res) => {
-  const pending = db.volunteers.filter((v) => v.status === 'pending');
+router.get('/volunteers/pending', requireAuth('organiser', 'admin'), async (_req, res) => {
+  const all = await getAllVolunteers();
+  const pending = all.filter((v) => v.status === 'pending');
   res.json(pending);
 });
 
 // GET /api/auth/volunteers/all
-router.get('/volunteers/all', requireAuth('organiser', 'admin'), (_req, res) => {
-  res.json(db.volunteers.map((v) => ({
-    ...v,
-    user: db.users.find((u) => u.volunteerId === v.id) || null,
-  })));
+router.get('/volunteers/all', requireAuth('organiser', 'admin'), async (_req, res) => {
+  const all = await getAllVolunteers();
+  res.json(all);
 });
 
 // PATCH /api/auth/volunteers/:id/status  { status: 'approved'|'rejected'|'suspended' }
-router.patch('/volunteers/:id/status', requireAuth('organiser', 'admin'), (req, res) => {
-  const vol = db.volunteers.find((v) => v.id === req.params.id);
+router.patch('/volunteers/:id/status', requireAuth('organiser', 'admin'), async (req, res) => {
+  const vol = await getVolunteerById(req.params.id);
   if (!vol) return res.status(404).json({ error: 'Volunteer not found' });
 
   const { status } = req.body || {};
@@ -220,21 +224,20 @@ router.patch('/volunteers/:id/status', requireAuth('organiser', 'admin'), (req, 
     return res.status(400).json({ error: 'status must be approved, rejected or suspended' });
   }
 
-  vol.status = status;
-  vol.verified = status === 'approved';
+  const updatedVol = await updateVolunteer(vol.id, {
+    status,
+    verified: status === 'approved',
+    online: status !== 'approved' ? false : vol.online,
+  });
 
-  // If suspended or rejected, take offline
-  if (status !== 'approved') {
-    vol.online = false;
+  // Sync user record if linked
+  const user = await findUserByPhone(vol.phone);
+  if (user) {
+    await updateUser(user.id, { volunteerStatus: status });
   }
 
-  // Sync user record
-  const user = db.users.find((u) => u.volunteerId === vol.id);
-  if (user) user.volunteerStatus = status;
-
-  broadcast('volunteer:update', vol);
-  res.json(vol);
+  broadcast('volunteer:update', updatedVol);
+  res.json(updatedVol);
 });
 
 export default router;
-

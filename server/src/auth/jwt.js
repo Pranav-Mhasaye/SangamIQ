@@ -1,10 +1,7 @@
 // JWT access + refresh token utilities.
-// Access tokens: short-lived (15 min), carried in Authorization header.
-// Refresh tokens: longer-lived (7 days), stored as httpOnly cookie + in-memory map.
-
 import jwt from 'jsonwebtoken';
 import { randomUUID } from 'node:crypto';
-import { db } from '../data.js';
+import { saveRefreshToken, consumeRefreshToken, revokeRefreshToken } from '../repos/tokensRepo.js';
 
 const JWT_SECRET = process.env.JWT_SECRET || 'sangamiq-dev-secret-change-in-production';
 const ACCESS_TTL = '15m';
@@ -32,33 +29,21 @@ export function verifyAccess(token) {
   }
 }
 
-// ---------- Refresh tokens (opaque UUIDs, stored in-memory) ----------
+// ---------- Refresh tokens ----------
 
-export function createRefresh(userId) {
+export async function createRefresh(userId) {
   const token = randomUUID();
   const expiresAt = Date.now() + REFRESH_TTL_MS;
-  db.refreshTokens.push({ token, userId, expiresAt });
+  await saveRefreshToken(token, userId, expiresAt);
   return token;
 }
 
-export function consumeRefresh(token) {
-  const idx = db.refreshTokens.findIndex((r) => r.token === token && r.expiresAt > Date.now());
-  if (idx === -1) return null;
-  const entry = db.refreshTokens[idx];
-  // Rotate: remove old token (a new one will be issued)
-  db.refreshTokens.splice(idx, 1);
-  return entry.userId;
+export async function consumeRefresh(token) {
+  return consumeRefreshToken(token);
 }
 
-export function revokeRefresh(token) {
-  const idx = db.refreshTokens.findIndex((r) => r.token === token);
-  if (idx !== -1) db.refreshTokens.splice(idx, 1);
-}
-
-// Periodic cleanup (called from seed or on interval)
-export function cleanupExpiredTokens() {
-  const now = Date.now();
-  db.refreshTokens = db.refreshTokens.filter((r) => r.expiresAt > now);
+export async function revokeRefresh(token) {
+  return revokeRefreshToken(token);
 }
 
 // Cookie helpers
@@ -77,4 +62,3 @@ export function setRefreshCookie(res, token) {
 export function clearRefreshCookie(res) {
   res.clearCookie(REFRESH_COOKIE, { path: '/api/auth' });
 }
-
