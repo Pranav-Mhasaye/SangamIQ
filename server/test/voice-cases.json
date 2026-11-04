@@ -14,3 +14,4 @@
   { "phrase": "मला पाणी हवे आहे", "lang": "mr", "expectedIntent": "request_help", "expectedType": "water" },
   { "phrase": "where is doctor", "lang": "en", "expectedIntent": "find_service", "expectedType": "medical" }
 ]
+

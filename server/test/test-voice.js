@@ -28,3 +28,4 @@ for (const c of cases) {
 
 console.log(`Voice test results: ${passed} passed, ${failed} failed`);
 if (failed > 0) process.exit(1);
+
