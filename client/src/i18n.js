@@ -1,4 +1,4 @@
-// Attendee-facing strings in English / Hindi / Marathi. Volunteer & organiser dashboards are English for now.
+// Attendee & Volunteer strings in English / Hindi / Marathi.
 export const LANGS = [
   { id: 'mr', label: 'मराठी', speech: 'mr-IN' },
   { id: 'hi', label: 'हिंदी', speech: 'hi-IN' },
@@ -54,6 +54,28 @@ const S = {
   available: { en: 'Available services', hi: 'उपलब्ध सेवाएं', mr: 'उपलब्ध सेवा' },
   runBy: { en: 'Run by', hi: 'संचालक', mr: 'संचालक' },
   allTypes: { en: 'All', hi: 'सभी', mr: 'सर्व' },
+  changeRole: { en: 'Change role', hi: 'रोल बदलें', mr: 'भूमिका बदला' },
+  confirmChangeRole: { en: 'Are you sure you want to switch role?', hi: 'क्या आप निश्चित रूप से रोल बदलना चाहते हैं?', mr: 'तुम्हाला खात्री आहे की तुम्ही भूमिका बदलू इच्छिता?' },
+
+  // Volunteer dashboard strings
+  volDashboard: { en: 'Volunteer Dashboard', hi: 'स्वयंसेवक डैशबोर्ड', mr: 'स्वयंसेवक डॅशबोर्ड' },
+  volOnline: { en: 'You are online - receiving requests', hi: 'आप ऑनलाइन हैं - अनुरोध प्राप्त हो रहे हैं', mr: 'तुम्ही ऑनलाइन आहात - विनंत्या येत आहेत' },
+  volOffline: { en: 'You are offline - tap to go online', hi: 'आप ऑफलाइन हैं - ऑनलाइन होने के लिए दबाएं', mr: 'तुम्ही ऑफलाइन आहात - ऑनलाइन होण्यासाठी दाबा' },
+  openRequests: { en: 'Open requests', hi: 'खुले अनुरोध', mr: 'प्रलंबित विनंत्या' },
+  inProgressYou: { en: 'In progress (you)', hi: 'प्रगति पर (आप)', mr: 'प्रगतीपथावर (तुम्ही)' },
+  completedYou: { en: 'Completed (you)', hi: 'पूर्ण (आप)', mr: 'पूर्ण केले (तुम्ही)' },
+  yourActiveTasks: { en: 'Your active tasks', hi: 'आपके सक्रिय कार्य', mr: 'तुमची सक्रिय कामे' },
+  incomingRequests: { en: 'Incoming requests', hi: 'आने वाले अनुरोध', mr: 'नवीन विनंत्या' },
+  goOnlineHint: { en: 'Go online to accept requests.', hi: 'अनुरोध स्वीकार करने के लिए ऑनलाइन जाएं।', mr: 'विनंत्या स्वीकारण्यासाठी ऑनलाइन जा.' },
+  noOpenRequests: { en: 'No open requests right now. New ones appear here instantly.', hi: 'अभी कोई खुला अनुरोध नहीं है। नए अनुरोध तुरंत यहाँ दिखाई देंगे।', mr: 'सध्या कोणतीही प्रलंबित विनंती नाही. नवीन विनंत्या लगेच इथे दिसतील.' },
+  matchedToYou: { en: 'Matched to you', hi: 'आपके लिए उपयुक्त', mr: 'तुमच्यासाठी जुळणारे' },
+  viaVoice: { en: 'via voice', hi: 'आवाज़ द्वारा', mr: 'व्हॉइस द्वारे' },
+  done: { en: 'Done', hi: 'पूर्ण', mr: 'पूर्ण झाले' },
+  accept: { en: 'Accept', hi: 'स्वीकारें', mr: 'स्वीकारा' },
+  reqAccepted: { en: 'Request accepted', hi: 'अनुरोध स्वीकार किया गया', mr: 'विनंती स्वीकारली' },
+  markedDone: { en: 'Marked as done', hi: 'पूर्ण चिह्नित किया गया', mr: 'पूर्ण म्हणून नोंदवले' },
+  switchRole: { en: 'Switch role', hi: 'रोल बदलें', mr: 'भूमिका बदला' },
+  loading: { en: 'Loading…', hi: 'लोड हो रहा है…', mr: 'लोड होत आहे…' },
 };
 
 export const TYPE_LABEL = {
@@ -65,8 +87,20 @@ export const TYPE_LABEL = {
   transport: { en: 'Transport', hi: 'परिवहन', mr: 'वाहतूक' },
 };
 
+export const SKILL_LABEL = {
+  'first-aid': { en: 'First Aid', hi: 'प्राथमिक उपचार', mr: 'प्रथमोपचार' },
+  'elderly-care': { en: 'Elderly Care', hi: 'बुजुर्ग सेवा', mr: 'ज्येष्ठ नागरिक सेवा' },
+  medical: { en: 'Medical Support', hi: 'चिकित्सा सहायता', mr: 'वैद्यकीय मदत' },
+  water: { en: 'Water Supply', hi: 'जल सेवा', mr: 'पाणी पुरवठा' },
+  food: { en: 'Food Supply', hi: 'भोजन सेवा', mr: 'अन्नदान सेवा' },
+  toilet: { en: 'Sanitation', hi: 'स्वच्छता', mr: 'स्वच्छता' },
+  helpdesk: { en: 'Help Desk & Info', hi: 'सहायता केंद्र', mr: 'मदत केंद्र' },
+  transport: { en: 'Transport', hi: 'परिवहन', mr: 'वाहतूक' },
+};
+
 export const makeT = (lang) => {
   const t = (k) => (S[k] ? S[k][lang] || S[k].en : k);
   t.type = (id) => (TYPE_LABEL[id] ? TYPE_LABEL[id][lang] || TYPE_LABEL[id].en : id);
+  t.skill = (id) => (SKILL_LABEL[id] ? SKILL_LABEL[id][lang] || SKILL_LABEL[id].en : id);
   return t;
 };

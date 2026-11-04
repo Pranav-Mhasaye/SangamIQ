@@ -18,7 +18,8 @@ export function snapshot() {
   return db.zones.map((z) => {
     const { slope, predicted } = predict(z);
     return {
-      id: z.id, name: z.name, lat: z.lat, lng: z.lng, radius: z.radius, capacity: z.capacity,
+      id: z.id, name: z.name, name_mr: z.name_mr || z.name, name_hi: z.name_hi || z.name,
+      lat: z.lat, lng: z.lng, radius: z.radius, capacity: z.capacity,
       density: Math.round(z.density), predicted, trend: slope > 0.8 ? 'rising' : slope < -0.8 ? 'falling' : 'steady',
       risk: riskOf(z.density), predictedRisk: riskOf(predicted), people: Math.round((z.density / 100) * z.capacity),
     };
@@ -30,13 +31,15 @@ function autoAlert(zone, predicted) {
   if (now - zone.lastAlertAt < 120000) return;
   zone.lastAlertAt = now;
   const n = zone.name;
+  const n_mr = zone.name_mr || zone.name;
+  const n_hi = zone.name_hi || zone.name;
   const alert = {
     id: uid('alt'), level: predicted >= 85 ? 'emergency' : 'warning', zone: zone.id, createdAt: new Date().toISOString(), auto: true,
     title: `Crowd building near ${n}`,
     messages: {
       en: `Heavy crowd expected near ${n}. Please use alternate routes and keep your family together.`,
-      hi: `${n} के पास भारी भीड़ की संभावना है। कृपया वैकल्पिक मार्ग अपनाएं और परिवार को साथ रखें।`,
-      mr: `${n} जवळ मोठी गर्दी होण्याची शक्यता आहे. कृपया पर्यायी मार्ग वापरा आणि कुटुंबाला सोबत ठेवा.`,
+      hi: `${n_hi} के पास भारी भीड़ की संभावना है। कृपया वैकल्पिक मार्ग अपनाएं और परिवार को साथ रखें।`,
+      mr: `${n_mr} जवळ मोठी गर्दी होण्याची शक्यता आहे. कृपया पर्यायी मार्ग वापरा आणि कुटुंबाला सोबत ठेवा.`,
     },
   };
   db.alerts.unshift(alert);

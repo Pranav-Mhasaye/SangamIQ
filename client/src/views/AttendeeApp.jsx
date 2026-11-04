@@ -43,6 +43,7 @@ export default function AttendeeApp({ onExit }) {
     [activeId]
   );
 
+  const locName = (s) => (s ? ((lang === 'mr' && s.name_mr) || (lang === 'hi' && s.name_hi) || s.name) : '');
   const shown = useMemo(() => (services || []).filter((s) => !filter || s.type === filter), [services, filter]);
   const nearest = shown.slice(0, 3);
   const banner = (alerts || []).find((a) => a.level !== 'info');
@@ -86,7 +87,7 @@ export default function AttendeeApp({ onExit }) {
               ))}
             </div>
 
-            <MapView center={pos} me={pos} height={250} markers={shown.map((s) => ({ id: s.id, lat: s.lat, lng: s.lng, type: s.type, label: s.name }))}
+            <MapView center={pos} me={pos} height={250} markers={shown.map((s) => ({ id: s.id, lat: s.lat, lng: s.lng, type: s.type, label: locName(s) }))}
               onMarker={(m) => setScreen({ name: 'detail', id: m.id })} />
 
             <h3 className="section">{t('nearby')}</h3>
@@ -95,7 +96,7 @@ export default function AttendeeApp({ onExit }) {
                 <li key={s.id}>
                   <button className="row-card" onClick={() => setScreen({ name: 'detail', id: s.id })}>
                     <TypeIcon type={s.type} />
-                    <div className="grow"><b>{s.name}</b><small>{km(s.distanceM)} · {s.etaMin} {t('minAway')}</small></div>
+                    <div className="grow"><b>{locName(s)}</b><small>{km(s.distanceM)} · {s.etaMin} {t('minAway')}</small></div>
                     <ChevronRight size={20} />
                   </button>
                 </li>
@@ -112,7 +113,7 @@ export default function AttendeeApp({ onExit }) {
                 <button key={id} className={`tile ${filter === id ? 'on' : ''}`} onClick={() => setFilter(filter === id ? null : id)}><TypeIcon type={id} size={20} /></button>
               ))}
             </div>
-            <MapView center={pos} me={pos} zoom={16} height="calc(100dvh - 220px)" markers={shown.map((s) => ({ id: s.id, lat: s.lat, lng: s.lng, type: s.type, label: s.name }))}
+            <MapView center={pos} me={pos} zoom={16} height="calc(100dvh - 220px)" markers={shown.map((s) => ({ id: s.id, lat: s.lat, lng: s.lng, type: s.type, label: locName(s) }))}
               onMarker={(m) => setScreen({ name: 'detail', id: m.id })} />
           </>
         )}
@@ -196,17 +197,18 @@ function RequestScreen({ initialType, onBack, onSent }) {
 }
 
 function DetailScreen({ id, onBack, onRequest }) {
-  const { t, pos } = useApp();
+  const { t, lang, pos } = useApp();
   const [s] = useLive(() => api(`/services/${id}?lat=${pos.lat}&lng=${pos.lng}`), [], [id]);
   if (!s) return <div className="phone"><header className="topbar back"><button className="icon-btn" onClick={onBack}><ArrowLeft size={22} /></button></header></div>;
   const { color } = TYPE_META[s.type];
+  const sName = (lang === 'mr' && s.name_mr) || (lang === 'hi' && s.name_hi) || s.name;
   return (
     <div className="phone">
-      <header className="topbar back"><button className="icon-btn" onClick={onBack} aria-label={t('back')}><ArrowLeft size={22} /></button><h1>{s.name}</h1></header>
+      <header className="topbar back"><button className="icon-btn" onClick={onBack} aria-label={t('back')}><ArrowLeft size={22} /></button><h1>{sName}</h1></header>
       <main className="scroll">
         <div className="hero" style={{ '--c': color }}><TypeIcon type={s.type} size={40} /><div><b>{t.type(s.type)}</b><small>{km(s.distanceM)} · {s.etaMin} {t('minAway')}</small></div>
           {s.verified && <span className="badge"><ShieldCheck size={14} /> {t('verified')}</span>}</div>
-        <MapView center={{ lat: s.lat, lng: s.lng }} me={pos} zoom={17} height={180} markers={[{ id: s.id, lat: s.lat, lng: s.lng, type: s.type }]} />
+        <MapView center={{ lat: s.lat, lng: s.lng }} me={pos} zoom={17} height={180} markers={[{ id: s.id, lat: s.lat, lng: s.lng, type: s.type, label: sName }]} />
         <dl className="facts">
           <dt>{t('openHours')}</dt><dd>{s.hours}</dd>
           {s.operator && <><dt>{t('runBy')}</dt><dd>{s.operator}</dd></>}
@@ -225,7 +227,7 @@ function DetailScreen({ id, onBack, onRequest }) {
 }
 
 function TrackScreen({ id, onBack, onDone }) {
-  const { t, pos } = useApp();
+  const { t, lang, pos } = useApp();
   const [r, reload] = useLive(
     async () => {
       try {
@@ -243,6 +245,7 @@ function TrackScreen({ id, onBack, onDone }) {
   const idx = r.status === 'cancelled' ? -1 : steps.findIndex(([k]) => k === r.status);
   const act = async (what) => { await api(`/requests/${id}/${what}`, { method: 'POST' }); reload(); if (what === 'cancel') onDone(); };
   const v = r.volunteer;
+  const nsName = r.nearestService ? (((lang === 'mr' && r.nearestService.name_mr) || (lang === 'hi' && r.nearestService.name_hi) || r.nearestService.name)) : '';
   return (
     <div className="phone">
       <header className="topbar back"><button className="icon-btn" onClick={onBack} aria-label={t('back')}><ArrowLeft size={22} /></button><h1>{t('yourRequest')}</h1></header>
@@ -253,7 +256,7 @@ function TrackScreen({ id, onBack, onDone }) {
           <ol className="steps">{steps.map(([k, label], i) => <li key={k} className={i <= idx ? 'done' : ''}><span>{i < idx || r.status === 'completed' ? <Check size={14} /> : ''}</span>{label}</li>)}</ol>
         )}
         {v ? (
-          <div className="card person"><div className="avatar">{v.name[0]}</div><div className="grow"><b>{v.name}</b><small>{(v.skills || []).join(', ')}</small></div>
+          <div className="card person"><div className="avatar">{v.name[0]}</div><div className="grow"><b>{v.name}</b><small>{(v.skills || []).map((sk) => t.skill(sk)).join(', ')}</small></div>
             <a className="btn small" href={`tel:${v.phone.replace(/\s/g, '')}`}><PhoneCall size={16} /></a></div>
         ) : r.status === 'open' && (
           <>
@@ -265,7 +268,7 @@ function TrackScreen({ id, onBack, onDone }) {
         )}
         {r.nearestService && (
           <a className="row-card" target="_blank" rel="noreferrer" href={mapsLink(r.nearestService.lat, r.nearestService.lng)}>
-            <TypeIcon type={r.type} /><div className="grow"><b>{r.nearestService.name}</b><small>{t('getDirections')}</small></div><Navigation size={20} /></a>
+            <TypeIcon type={r.type} /><div className="grow"><b>{nsName}</b><small>{t('getDirections')}</small></div><Navigation size={20} /></a>
         )}
       </main>
       {['open', 'accepted'].includes(r.status) && (

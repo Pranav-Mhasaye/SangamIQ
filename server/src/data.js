@@ -15,8 +15,8 @@ export const db = {
 let counter = 100;
 export const uid = (p) => `${p}_${++counter}`;
 
-const S = (type, name, lat, lng, extra = {}) => ({
-  id: uid('svc'), type, name, lat, lng, verified: true, hours: '24 x 7', ...extra,
+const S = (type, name, name_mr, name_hi, lat, lng, extra = {}) => ({
+  id: uid('svc'), type, name, name_mr, name_hi, lat, lng, verified: true, hours: '24 x 7', ...extra,
 });
 
 export function seed() {
@@ -25,21 +25,21 @@ export function seed() {
   const min = (m) => new Date(now - m * 60000).toISOString();
 
   db.services = [
-    S('medical', 'Primary Medical Camp', 18.6779, 73.8985, { operator: 'District Health Dept.', services: ['First Aid', 'Doctor', 'Ambulance Support'] }),
-    S('medical', 'Ambulance Point - Palkhi Route', 18.6745, 73.896, { operator: '108 Emergency Service', services: ['Ambulance', 'Oxygen'] }),
-    S('medical', 'Red Cross First Aid Tent', 18.6791, 73.9004, { operator: 'Red Cross (volunteers)', hours: '6 AM - 11 PM', services: ['First Aid', 'ORS'] }),
-    S('water', 'Water Station - Ghat Steps', 18.6758, 73.8995, { operator: 'Alandi Nagar Parishad', services: ['Drinking Water'] }),
-    S('water', 'Water Station - Mandir Road', 18.6785, 73.896, { operator: 'Seva Trust', services: ['Drinking Water', 'Buttermilk'] }),
-    S('water', 'Water Tanker - Bus Stand', 18.6738, 73.8955, { operator: 'Municipal Tanker', hours: '6 AM - 10 PM', services: ['Drinking Water'] }),
-    S('food', 'Food Seva - Annadan Mandap', 18.675, 73.8968, { operator: 'Warkari Seva Mandal', hours: '7 AM - 10 PM', services: ['Free Meals', 'Prasad'] }),
-    S('food', 'Community Kitchen - College Road', 18.677, 73.901, { operator: 'Local NGO', hours: '8 AM - 9 PM', services: ['Free Meals'] }),
-    S('toilet', 'Toilet Block A', 18.6772, 73.899, { services: ['Toilets', 'Wash Area'] }),
-    S('toilet', 'Toilet Block B', 18.674, 73.8985, { services: ['Toilets'] }),
-    S('toilet', 'Accessible Toilet - Mandir Gate', 18.679, 73.8975, { services: ['Accessible Toilets', 'Wheelchair Access'] }),
-    S('helpdesk', 'Help Desk - Main Gate', 18.6768, 73.897, { operator: 'Police + Volunteers', services: ['Information', 'Lost & Found', 'Family Reunion'] }),
-    S('helpdesk', 'Lost & Found - Ghat', 18.6781, 73.9, { operator: 'Volunteers', services: ['Lost & Found', 'Announcements'] }),
-    S('transport', 'PMPML Shuttle Stop', 18.6735, 73.895, { operator: 'PMPML', hours: '5 AM - 11 PM', services: ['Bus', 'Shuttle to Pune'] }),
-    S('transport', 'Free Pilgrim Shuttle', 18.68, 73.899, { operator: 'Event Organisers', hours: '6 AM - 10 PM', services: ['Shuttle', 'Elderly Priority Seats'] }),
+    S('medical', 'Primary Medical Camp', 'प्राथमिक वैद्यकीय केंद्र', 'प्राथमिक चिकित्सा शिविर', 18.6779, 73.8985, { operator: 'District Health Dept.', services: ['First Aid', 'Doctor', 'Ambulance Support'] }),
+    S('medical', 'Ambulance Point - Palkhi Route', 'रुग्णवाहिका केंद्र - पालखी मार्ग', 'एम्बुलेंस पॉइंट - पालकी मार्ग', 18.6745, 73.896, { operator: '108 Emergency Service', services: ['Ambulance', 'Oxygen'] }),
+    S('medical', 'Red Cross First Aid Tent', 'रेड क्रॉस प्रथमोपचार तंबू', 'रेड क्रॉस प्राथमिक उपचार तंबू', 18.6791, 73.9004, { operator: 'Red Cross (volunteers)', hours: '6 AM - 11 PM', services: ['First Aid', 'ORS'] }),
+    S('water', 'Water Station - Ghat Steps', 'पाणी केंद्र - घाट पायऱ्या', 'जल सेवा - घाट सीढ़ियां', 18.6758, 73.8995, { operator: 'Alandi Nagar Parishad', services: ['Drinking Water'] }),
+    S('water', 'Water Station - Mandir Road', 'पाणी केंद्र - मंदिर रस्ता', 'जल सेवा - मंदिर मार्ग', 18.6785, 73.896, { operator: 'Seva Trust', services: ['Drinking Water', 'Buttermilk'] }),
+    S('water', 'Water Tanker - Bus Stand', 'पाण्याचा टँकर - बस स्थानक', 'पानी का टैंकर - बस स्टैंड', 18.6738, 73.8955, { operator: 'Municipal Tanker', hours: '6 AM - 10 PM', services: ['Drinking Water'] }),
+    S('food', 'Food Seva - Annadan Mandap', 'अन्नदान मंडप - भोजन सेवा', 'अन्नदान मंडप - भोजन सेवा', 18.675, 73.8968, { operator: 'Warkari Seva Mandal', hours: '7 AM - 10 PM', services: ['Free Meals', 'Prasad'] }),
+    S('food', 'Community Kitchen - College Road', 'सामुदायिक अन्नछत्र - कॉलेज रस्ता', 'सामुदायिक रसोई - कॉलेज रोड', 18.677, 73.901, { operator: 'Local NGO', hours: '8 AM - 9 PM', services: ['Free Meals'] }),
+    S('toilet', 'Toilet Block A', 'स्वच्छतागृह विभाग अ', 'शौचालय ब्लॉक ए', 18.6772, 73.899, { services: ['Toilets', 'Wash Area'] }),
+    S('toilet', 'Toilet Block B', 'स्वच्छतागृह विभाग ब', 'शौचालय ब्लॉक बी', 18.674, 73.8985, { services: ['Toilets'] }),
+    S('toilet', 'Accessible Toilet - Mandir Gate', 'सुलभ स्वच्छतागृह - मंदिर महाद्वार', 'सुलभ शौचालय - मंदिर द्वार', 18.679, 73.8975, { services: ['Accessible Toilets', 'Wheelchair Access'] }),
+    S('helpdesk', 'Help Desk - Main Gate', 'मदत केंद्र - मुख्य प्रवेशद्वार', 'सहायता केंद्र - मुख्य द्वार', 18.6768, 73.897, { operator: 'Police + Volunteers', services: ['Information', 'Lost & Found', 'Family Reunion'] }),
+    S('helpdesk', 'Lost & Found - Ghat', 'हरवले-सापडले केंद्र - घाट', 'खोया-पाया केंद्र - घाट', 18.6781, 73.9, { operator: 'Volunteers', services: ['Lost & Found', 'Announcements'] }),
+    S('transport', 'PMPML Shuttle Stop', 'पीएमपीएमएल शटल थांबा', 'पीएमपीएमएल शटल बस स्टॉप', 18.6735, 73.895, { operator: 'PMPML', hours: '5 AM - 11 PM', services: ['Bus', 'Shuttle to Pune'] }),
+    S('transport', 'Free Pilgrim Shuttle', 'मोफत वारकरी शटल', 'मुफ्त तीर्थयात्री शटल', 18.68, 73.899, { operator: 'Event Organisers', hours: '6 AM - 10 PM', services: ['Shuttle', 'Elderly Priority Seats'] }),
   ];
 
   const V = (name, lat, lng, skills, online = true) => ({
@@ -103,15 +103,15 @@ export function seed() {
     },
   ];
 
-  const Z = (id, name, lat, lng, radius, capacity, base) => ({
-    id, name, lat, lng, radius, capacity, base, density: base, history: Array(6).fill(base), surge: 0, lastAlertAt: 0,
+  const Z = (id, name, name_mr, name_hi, lat, lng, radius, capacity, base) => ({
+    id, name, name_mr, name_hi, lat, lng, radius, capacity, base, density: base, history: Array(6).fill(base), surge: 0, lastAlertAt: 0,
   });
   db.zones = [
-    Z('z_mandir', 'Dnyaneshwar Mandir Gate', 18.6773, 73.8978, 120, 12000, 62),
-    Z('z_ghat', 'Indrayani Ghat', 18.6779, 73.8992, 110, 8000, 48),
-    Z('z_road', 'Palkhi Main Road', 18.6752, 73.8962, 150, 15000, 40),
-    Z('z_bus', 'Bus Stand & Shuttle Stop', 18.6737, 73.8952, 100, 6000, 35),
-    Z('z_mandap', 'Annadan Mandap', 18.6751, 73.8969, 90, 4000, 55),
+    Z('z_mandir', 'Dnyaneshwar Mandir Gate', 'ज्ञानेश्वर मंदिर महाद्वार', 'ज्ञानेश्वर मंदिर मुख्य द्वार', 18.6773, 73.8978, 120, 12000, 62),
+    Z('z_ghat', 'Indrayani Ghat', 'इंद्रायणी घाट', 'इंद्रायणी घाट', 18.6779, 73.8992, 110, 8000, 48),
+    Z('z_road', 'Palkhi Main Road', 'पालखी मुख्य मार्ग', 'पालकी मुख्य मार्ग', 18.6752, 73.8962, 150, 15000, 40),
+    Z('z_bus', 'Bus Stand & Shuttle Stop', 'बस स्थानक व शटल थांबा', 'बस स्टैंड और शटल स्टॉप', 18.6737, 73.8952, 100, 6000, 35),
+    Z('z_mandap', 'Annadan Mandap', 'अन्नदान मंडप', 'अन्नदान मंडप', 18.6751, 73.8969, 90, 4000, 55),
   ];
 }
 
