@@ -38,7 +38,7 @@ Primary **freemium** (attendees free; basic organiser tier free), secondary **su
 
 ## Next steps (suggested order)
 1. **Auth + roles** - [COMPLETED] Phone OTP for attendees/volunteers, email+bcrypt password for organisers, short-lived JWT access tokens + httpOnly refresh tokens, role-based middleware (`requireAuth`), rate limiting, Helmet, and volunteer verification workflow in Organiser dashboard.
-2. **Postgres/PostGIS** - apply `docs/schema.sql`, replace `server/src/data.js` with a repository layer; use `ST_Distance` / KNN `<->` for matching.
+2. **Postgres/PostGIS** - [COMPLETED] PostGIS database support added via `docker-compose.yml`, `node-pg-migrate` migrations, seed script, repository layer (`server/src/repos/*.js`), `ST_Distance` and KNN (`<->`) spatial index matching, crowd samples and alerts persistence, with in-memory fallback behind `USE_MEMORY_DB=true`.
 3. **Real voice AI** - speech-to-text (Whisper / Google STT) + LLM intent in `voice.js`; keep return shape `{intent,type,emergency,reply}`. Add an IVR/phone-call webhook (Twilio / Exotel) so feature-phone users can dial in - this is the deck's main differentiator.
 4. **Offline-first / low network** - deck lists cell congestion as the top technical risk: PWA + service worker, SMS fallback, queue-and-retry requests.
 5. **Push notifications** to volunteers (FCM / web push) instead of only SSE.

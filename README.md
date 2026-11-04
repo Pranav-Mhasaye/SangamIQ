@@ -20,6 +20,23 @@ Open http://localhost:5173 and pick a role. Best demo: open **Attendee** in one 
 
 Production-style single server: `npm run build && npm start` then open http://localhost:3001.
 
+### Database & Docker (PostgreSQL + PostGIS)
+
+SangamIQ supports PostgreSQL with PostGIS for spatial indexing, KNN volunteer matching, and persistent crowd monitoring:
+
+```bash
+# 1. Start PostgreSQL + PostGIS via Docker
+docker compose up -d
+
+# 2. Run schema migrations
+npm run db:migrate
+
+# 3. Seed Alandi sample data (services, volunteers, zones, requests)
+npm run db:seed
+```
+
+**Zero-database fallback**: If Docker is not running or `USE_MEMORY_DB=true` is set, the repository layer automatically falls back to the in-memory store so you can demo without any external dependencies.
+
 ## What works
 
 - **Attendee:** nearby medical / water / food / toilet / help desk / transport on a map, request help (with Emergency option), live request tracking, call volunteer, get walking directions, alerts, profile, Marathi / Hindi / English, large-text mode.
@@ -37,8 +54,8 @@ Map tiles come from OpenStreetMap, so the browser needs internet access.
 
 ## Known limitations
 
-1. **In-Memory Store (No Database)**: Seeded and runtime data lives in process memory (`server/src/data.js`). Data resets on server restart or via `POST /api/demo/reset`. Production target schema is provided in `docs/schema.sql` (PostgreSQL + PostGIS).
-2. **Development OTP & In-Memory Sessions**: SMS OTP defaults to the console provider with dev code `123456` when `DEV_OTP=true` (stubs ready for Twilio/MSG91/Exotel). Active sessions and refresh tokens are kept in memory until the database layer is connected.
+1. **Database Mode & In-Memory Fallback**: Production PostgreSQL + PostGIS database is supported via Docker and `node-pg-migrate`. When running without a live database or with `USE_MEMORY_DB=true`, data lives in memory and resets on restart.
+2. **Development OTP**: SMS OTP defaults to the console provider with dev code `123456` when `DEV_OTP=true` (stubs ready for Twilio/MSG91/Exotel).
 3. **In-Browser Voice Only (No IVR Dial-in)**: Voice assistance utilizes the browser's Web Speech API and keyword NLU; cloud IVR / telephony dial-in for basic feature phones (e.g. via Twilio or Exotel) is not yet integrated.
 4. **No Real Emergency Dispatch**: Requests flagged as "Emergency" or "critical" notify and prioritize in-app volunteers only; they do not dispatch to municipal 108 ambulance or police systems.
 5. **Simulated Crowd Intelligence**: The 15-minute zone forecast is driven by an internal simulator and trend extrapolator (`crowd.js`), not real physical CCTV cameras or telecom footfall telemetry.
@@ -46,10 +63,12 @@ Map tiles come from OpenStreetMap, so the browser needs internet access.
 ## Structure
 
 ```
-server/src/  index.js (API + matching)  voice.js (voice AI)  crowd.js (simulation + forecast)  data.js (seed)  bus.js (SSE)
-client/src/  views/ (Attendee, Volunteer, Organiser)  components/ (MapView, VoiceSheet)  i18n.js  api.js  styles.css
-docs/schema.sql  target PostgreSQL/PostGIS schema
-PROJECT_SPEC.md  product spec + roadmap     AGENTS.md  instructions for AI agents
+server/src/repos/  db.js (pool/fallback)  servicesRepo  volunteersRepo  requestsRepo  zonesRepo  alertsRepo  usersRepo  tokensRepo  statsRepo
+server/src/        index.js (API)  voice.js (voice AI)  crowd.js (simulation + forecast)  data.js (seed)  bus.js (SSE)
+server/migrations/ 001_init_postgis_schema.cjs
+client/src/        views/ (Attendee, Volunteer, Organiser)  components/ (MapView, VoiceSheet)  auth.jsx  i18n.js  api.js  styles.css
+docker-compose.yml PostGIS container setup
+PROJECT_SPEC.md    product spec + roadmap     AGENTS.md  instructions for AI agents
 ```
 
 ## Using it in Antigravity

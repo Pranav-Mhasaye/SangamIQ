@@ -1,7 +1,8 @@
 // Comprehensive test suite for SangamIQ Auth & Security
 import assert from 'node:assert/strict';
 
-const BASE = 'http://localhost:3002';
+const PORT = process.env.TEST_PORT || 3003;
+const BASE = `http://localhost:${PORT}`;
 
 async function req(path, { method = 'GET', body, token, cookie } = {}) {
   const headers = { 'Content-Type': 'application/json' };
@@ -225,3 +226,4 @@ runTests().catch((e) => {
   console.error('\n❌ Test failed:', e);
   process.exit(1);
 });
+
