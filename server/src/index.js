@@ -1,14 +1,28 @@
 import express from 'express';
 import cors from 'cors';
+import cookieParser from 'cookie-parser';
+import helmet from 'helmet';
+import rateLimit from 'express-rate-limit';
 import { db, uid, TYPES, CENTER, seed } from './data.js';
 import { distanceM, etaMin } from './geo.js';
 import { addClient, broadcast } from './bus.js';
 import { classify, replyFor, isCritical } from './voice.js';
 import { snapshot, startCrowdSim, surgeZone } from './crowd.js';
+import authRouter from './auth/routes.js';
+import { requireAuth, optionalAuth } from './auth/middleware.js';
 
 const app = express();
-app.use(cors());
+
+// ---------- security ----------
+app.use(helmet({ contentSecurityPolicy: false, crossOriginEmbedderPolicy: false }));
+app.use(cors({ origin: true, credentials: true }));
 app.use(express.json());
+app.use(cookieParser());
+
+// Rate limiters
+const otpLimiter = rateLimit({ windowMs: 60 * 1000, max: 5, message: { error: 'Too many OTP requests, try again in a minute' } });
+const requestLimiter = rateLimit({ windowMs: 60 * 1000, max: 10, message: { error: 'Too many requests, slow down' } });
+const authLimiter = rateLimit({ windowMs: 15 * 60 * 1000, max: 20, message: { error: 'Too many login attempts' } });
 
 const num = (v, d) => (Number.isFinite(Number(v)) && v !== '' && v != null ? Number(v) : d);
 const here = (q) => ({ lat: num(q.lat, CENTER.lat), lng: num(q.lng, CENTER.lng) });
@@ -27,7 +41,7 @@ function nearestServices(type, pos, limit = 50) {
 
 function matchVolunteers(type, pos, limit = 3, critical = false) {
   return db.volunteers
-    .filter((v) => v.online && v.verified)
+    .filter((v) => v.online && v.verified && v.status === 'approved')
     .map((v) => {
       const d = distanceM(pos, v);
       const directFit = v.skills.includes(type) || (type === 'medical' && v.skills.includes('first-aid'));
@@ -49,7 +63,7 @@ const withVol = (r) => ({
   matched: r.status === 'open' ? matchVolunteers(r.type, r, 3, r.priority === 'critical') : (r.matched || []),
 });
 
-function createRequest({ type, lat, lng, note = '', language = 'en', channel = 'app', emergency = false, name = '', priority }) {
+function createRequest({ type, lat, lng, note = '', language = 'en', channel = 'app', emergency = false, name = '', priority, deviceId = null, userId = null }) {
   const chosenType = type || (emergency ? 'medical' : null);
   if (!TYPES.includes(chosenType)) throw Object.assign(new Error(`type must be one of ${TYPES.join(', ')}`), { status: 400 });
   const pos = { lat: num(lat, CENTER.lat), lng: num(lng, CENTER.lng) };
@@ -61,13 +75,21 @@ function createRequest({ type, lat, lng, note = '', language = 'en', channel = '
     status: 'open', createdAt: new Date().toISOString(), acceptedBy: null, acceptedAt: null, completedAt: null,
     matched: matchVolunteers(chosenType, pos, 3, critical),
     nearestService: nearestServices(chosenType, pos, 1)[0] || null,
+    deviceId: deviceId || null,
+    userId: userId || null,
   };
   db.requests.unshift(req);
   broadcast('request:new', withVol(req));
   return withVol(req);
 }
 
-// ---------- routes ----------
+// ---------- auth routes ----------
+app.use('/api/auth/send-otp', otpLimiter);
+app.use('/api/auth/verify-otp', authLimiter);
+app.use('/api/auth/login-organiser', authLimiter);
+app.use('/api/auth', authRouter);
+
+// ---------- public routes ----------
 app.get('/api/health', (_req, res) => res.json({ ok: true, center: CENTER, types: TYPES }));
 app.get('/api/stream', addClient);
 
@@ -85,12 +107,16 @@ app.get('/api/services/:id', (req, res) => {
   res.json({ ...s, distanceM: d, etaMin: etaMin(d), contact });
 });
 
-app.post('/api/requests', (req, res) => {
-  try { res.status(201).json(createRequest(req.body || {})); }
-  catch (e) { res.status(e.status || 500).json({ error: e.message }); }
+// ---------- request creation (guest or authed) ----------
+app.post('/api/requests', requestLimiter, optionalAuth, (req, res) => {
+  try {
+    const body = req.body || {};
+    body.userId = req.user?.sub || null;
+    res.status(201).json(createRequest(body));
+  } catch (e) { res.status(e.status || 500).json({ error: e.message }); }
 });
 
-app.get('/api/requests', (req, res) => {
+app.get('/api/requests', optionalAuth, (req, res) => {
   const { status, volunteerId } = req.query;
   const me = volunteerId ? db.volunteers.find((v) => v.id === volunteerId) : null;
   let list = db.requests.map(withVol);
@@ -110,10 +136,14 @@ app.get('/api/requests/:id', (req, res) => {
   res.json(withVol(r));
 });
 
-app.post('/api/requests/:id/accept', (req, res) => {
+// ---------- volunteer actions (requires volunteer role) ----------
+app.post('/api/requests/:id/accept', requireAuth('volunteer'), (req, res) => {
   const r = db.requests.find((x) => x.id === req.params.id);
-  const v = db.volunteers.find((x) => x.id === req.body?.volunteerId);
+  // Use the volunteer linked to the authenticated user
+  const volunteerId = req.user.volunteerId || req.body?.volunteerId;
+  const v = db.volunteers.find((x) => x.id === volunteerId);
   if (!r || !v) return res.status(404).json({ error: 'request or volunteer not found' });
+  if (v.status !== 'approved') return res.status(403).json({ error: 'Volunteer not approved' });
   if (r.status !== 'open') return res.status(409).json({ error: 'request already taken' });
   r.status = 'accepted';
   r.acceptedBy = v.id;
@@ -137,13 +167,20 @@ function close(status) {
     res.json(withVol(r));
   };
 }
-app.post('/api/requests/:id/complete', close('completed'));
-app.post('/api/requests/:id/cancel', close('cancelled'));
+app.post('/api/requests/:id/complete', requireAuth('volunteer', 'organiser', 'admin'), close('completed'));
+app.post('/api/requests/:id/cancel', optionalAuth, close('cancelled'));
 
-app.get('/api/volunteers', (_req, res) => res.json(db.volunteers));
-app.patch('/api/volunteers/:id', (req, res) => {
+// ---------- volunteer self-management ----------
+app.get('/api/volunteers', optionalAuth, (_req, res) => res.json(db.volunteers));
+app.patch('/api/volunteers/:id', requireAuth('volunteer', 'organiser', 'admin'), (req, res) => {
   const v = db.volunteers.find((x) => x.id === req.params.id);
   if (!v) return res.status(404).json({ error: 'volunteer not found' });
+
+  // Volunteers can only update their own record
+  if (req.user.role === 'volunteer' && req.user.volunteerId !== v.id) {
+    return res.status(403).json({ error: 'Cannot update another volunteer' });
+  }
+
   const prevOnline = v.online;
   if (typeof req.body?.online === 'boolean') v.online = req.body.online;
   if (Number.isFinite(req.body?.lat) && Number.isFinite(req.body?.lng)) { v.lat = req.body.lat; v.lng = req.body.lng; }
@@ -161,8 +198,9 @@ app.patch('/api/volunteers/:id', (req, res) => {
   res.json(v);
 });
 
+// ---------- alerts (public read, organiser write) ----------
 app.get('/api/alerts', (_req, res) => res.json(db.alerts));
-app.post('/api/alerts', (req, res) => {
+app.post('/api/alerts', requireAuth('organiser', 'admin'), (req, res) => {
   const { level = 'info', title, message, hi, mr, zone = null } = req.body || {};
   if (!title || !message) return res.status(400).json({ error: 'title and message are required' });
   const alert = {
@@ -175,15 +213,16 @@ app.post('/api/alerts', (req, res) => {
   res.status(201).json(alert);
 });
 
+// ---------- crowd (public read, organiser surge) ----------
 app.get('/api/crowd', (_req, res) => res.json(snapshot()));
-app.post('/api/crowd/:id/surge', (req, res) => {
+app.post('/api/crowd/:id/surge', requireAuth('organiser', 'admin'), (req, res) => {
   const z = surgeZone(req.params.id);
   if (!z) return res.status(404).json({ error: 'zone not found' });
   res.json({ ok: true, zone: z.id });
 });
 
-// Voice AI: text in (from browser speech recognition or an IVR/STT service), intent + spoken reply out.
-app.post('/api/voice/intent', (req, res) => {
+// ---------- voice AI (guest or authed) ----------
+app.post('/api/voice/intent', requestLimiter, optionalAuth, (req, res) => {
   const { text = '', language = 'en', lat, lng, create = true, channel = 'voice' } = req.body || {};
   const pos = { lat: num(lat, CENTER.lat), lng: num(lng, CENTER.lng) };
   const parsed = classify(text);
@@ -199,12 +238,14 @@ app.post('/api/voice/intent', (req, res) => {
       channel,
       emergency: parsed.emergency,
       priority: parsed.priority,
+      userId: req.user?.sub || null,
     });
   }
   res.json({ ...parsed, reply, nearest, request });
 });
 
-app.get('/api/stats', (_req, res) => {
+// ---------- stats (organiser only) ----------
+app.get('/api/stats', requireAuth('organiser', 'admin'), (_req, res) => {
   const accepted = db.requests.filter((r) => r.acceptedAt);
   const avgSec = accepted.length
     ? Math.round(accepted.reduce((s, r) => s + (new Date(r.acceptedAt) - new Date(r.createdAt)) / 1000, 0) / accepted.length)
@@ -218,7 +259,8 @@ app.get('/api/stats', (_req, res) => {
   });
 });
 
-app.post('/api/demo/reset', (_req, res) => { seed(); broadcast('request:update', {}); broadcast('volunteer:update', {}); res.json({ ok: true }); });
+// ---------- demo reset (organiser/admin only) ----------
+app.post('/api/demo/reset', requireAuth('organiser', 'admin'), (_req, res) => { seed(); broadcast('request:update', {}); broadcast('volunteer:update', {}); res.json({ ok: true }); });
 
 // serve the built client in production (npm run build && npm start)
 import path from 'node:path';

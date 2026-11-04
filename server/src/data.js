@@ -1,5 +1,7 @@
 // In-memory store seeded with SAMPLE data around Alandi (Indrayani Ghat / Dnyaneshwar Mandir area).
 // Swap this module for PostgreSQL/PostGIS later - the rest of the API only uses `db`.
+import bcrypt from 'bcryptjs';
+
 export const CENTER = { lat: 18.6764, lng: 73.8977, name: 'Alandi, Pune' };
 
 export const TYPES = ['medical', 'water', 'food', 'toilet', 'helpdesk', 'transport'];
@@ -10,6 +12,8 @@ export const db = {
   requests: [],
   alerts: [],
   zones: [],
+  users: [],
+  refreshTokens: [],
 };
 
 let counter = 100;
@@ -43,8 +47,8 @@ export function seed() {
   ];
 
   const V = (name, lat, lng, skills, online = true) => ({
-    id: uid('vol'), name, lat, lng, skills, online, verified: true,
-    phone: `+91 90000 0${String(counter).padStart(4, '0')}`, activeRequestId: null,
+    id: uid('vol'), name, lat, lng, skills, online, verified: true, status: 'approved',
+    phone: `+919000${String(counter).padStart(5, '0')}`, activeRequestId: null,
   });
   db.volunteers = [
     V('Sneha Kulkarni', 18.6769, 73.8979, ['medical', 'first-aid']),
@@ -56,6 +60,28 @@ export function seed() {
     V('Sandeep Gaikwad', 18.6742, 73.8966, ['transport', 'water']),
     V('Neha Joshi', 18.6775, 73.8962, ['medical', 'first-aid'], false),
   ];
+
+  // ---------- Seed users ----------
+  db.users = [];
+
+  // Seeded organiser account (admin@sangamiq.local / admin123)
+  const orgPasswordHash = bcrypt.hashSync('admin123', 10);
+  db.users.push({
+    id: uid('usr'), phone: null, email: 'admin@sangamiq.local', passwordHash: orgPasswordHash,
+    role: 'organiser', name: 'Admin', createdAt: new Date().toISOString(),
+    volunteerId: null, volunteerStatus: null,
+  });
+
+  // Link seeded volunteers to user accounts so they can log in with phone+OTP
+  for (const vol of db.volunteers) {
+    db.users.push({
+      id: uid('usr'), phone: vol.phone, email: null, passwordHash: null,
+      role: 'volunteer', name: vol.name, createdAt: new Date().toISOString(),
+      volunteerId: vol.id, volunteerStatus: vol.status,
+    });
+  }
+
+  db.refreshTokens = [];
 
   db.requests = [];
   const mk = (type, dLat, dLng, status, createdMin, acceptMin, vol, priority = 'normal', channel = 'app') => {
