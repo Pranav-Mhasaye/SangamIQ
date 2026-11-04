@@ -30,6 +30,14 @@ All places, volunteers and crowd numbers are fake sample data near Alandi. The a
 
 Map tiles come from OpenStreetMap, so the browser needs internet access.
 
+## Known limitations
+
+1. **In-Memory Store (No Database)**: Seeded and runtime data lives in process memory (`server/src/data.js`). Data resets on server restart or via `POST /api/demo/reset`. Production target schema is provided in `docs/schema.sql` (PostgreSQL + PostGIS).
+2. **No User Authentication**: Users switch between Attendee, Volunteer, and Organiser roles via the client-side role picker without password or OTP verification.
+3. **In-Browser Voice Only (No IVR Dial-in)**: Voice assistance utilizes the browser's Web Speech API and keyword NLU; cloud IVR / telephony dial-in for basic feature phones (e.g. via Twilio or Exotel) is not yet integrated.
+4. **No Real Emergency Dispatch**: Requests flagged as "Emergency" or "critical" notify and prioritize in-app volunteers only; they do not dispatch to municipal 108 ambulance or police systems.
+5. **Simulated Crowd Intelligence**: The 15-minute zone forecast is driven by an internal simulator and trend extrapolator (`crowd.js`), not real physical CCTV cameras or telecom footfall telemetry.
+
 ## Structure
 
 ```
