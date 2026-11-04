@@ -2,15 +2,74 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 
 const BASE = import.meta.env.VITE_API_URL || '';
 
+// ---------- token management ----------
+let accessToken = null;
+
+export function setAccessToken(token) { accessToken = token; }
+export function getAccessToken() { return accessToken; }
+export function clearAccessToken() { accessToken = null; }
+
+// ---------- api() with auth ----------
+
 export async function api(path, { method = 'GET', body } = {}) {
+  const headers = { 'Content-Type': 'application/json' };
+  if (accessToken) headers['Authorization'] = `Bearer ${accessToken}`;
+
   const res = await fetch(`${BASE}/api${path}`, {
     method,
-    headers: { 'Content-Type': 'application/json' },
+    headers,
+    credentials: 'include', // send cookies for refresh token
     body: body ? JSON.stringify(body) : undefined,
   });
+
+  // If 401 and we have a token, try refreshing
+  if (res.status === 401 && accessToken) {
+    const refreshed = await tryRefresh();
+    if (refreshed) {
+      // Retry the original request with new token
+      headers['Authorization'] = `Bearer ${accessToken}`;
+      const retry = await fetch(`${BASE}/api${path}`, {
+        method,
+        headers,
+        credentials: 'include',
+        body: body ? JSON.stringify(body) : undefined,
+      });
+      const retryData = await retry.json().catch(() => ({}));
+      if (!retry.ok) throw new Error(retryData.error || retry.statusText);
+      return retryData;
+    }
+  }
+
   const data = await res.json().catch(() => ({}));
   if (!res.ok) throw new Error(data.error || res.statusText);
   return data;
+}
+
+// Try to refresh the access token using the httpOnly cookie
+async function tryRefresh() {
+  try {
+    const res = await fetch(`${BASE}/api/auth/refresh`, {
+      method: 'POST',
+      credentials: 'include',
+      headers: { 'Content-Type': 'application/json' },
+    });
+    if (!res.ok) { clearAccessToken(); return false; }
+    const data = await res.json();
+    accessToken = data.accessToken;
+    // Notify listeners that auth changed
+    authListeners.forEach((fn) => fn(data.user));
+    return true;
+  } catch {
+    clearAccessToken();
+    return false;
+  }
+}
+
+// Auth change listeners (used by AuthProvider)
+const authListeners = new Set();
+export function onAuthChange(fn) {
+  authListeners.add(fn);
+  return () => authListeners.delete(fn);
 }
 
 // One shared Server-Sent Events connection for the whole app.
