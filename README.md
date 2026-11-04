@@ -24,9 +24,10 @@ Production-style single server: `npm run build && npm start` then open http://lo
 
 - **Attendee:** nearby medical / water / food / toilet / help desk / transport on a map, request help (with Emergency option), live request tracking, call volunteer, get walking directions, alerts, profile, Marathi / Hindi / English, large-text mode.
 - **Voice AI:** tap the mic and speak (Chrome / Edge / Android Chrome) or type: "मला पाणी हवे आहे", "doctor", "where is the toilet". The reply is read aloud in the chosen language and a request is created.
-- **Volunteer:** go online/offline, requests ranked by match + distance, accept, mark done, directions.
-- **Organiser:** live crowd heatmap, 15-minute forecast per zone, automatic crowd alerts, broadcast alerts in 3 languages, request table, KPIs, "Simulate surge" button to demo the forecast.
-- **Matching:** nearest online verified volunteers scored by distance, skill fit and current workload.
+- **Volunteer:** register or sign in with phone + OTP, pending approval screen until approved, go online/offline, requests ranked by match + distance, accept, mark done, directions.
+- **Organiser:** sign in with email + password (`admin@sangamiq.local` / `admin123`), live crowd heatmap, 15-minute forecast per zone, automatic crowd alerts, broadcast alerts in 3 languages, request table, KPIs, "Simulate surge" button, and a dedicated **Volunteers** tab to approve, reject or suspend volunteers.
+- **Authentication & Security:** Pluggable OTP provider (console prints code, dev OTP `123456`, SMS stubs for Twilio/MSG91/Exotel), bcrypt for organiser passwords, short-lived JWT access tokens + httpOnly refresh tokens, `express-rate-limit`, `helmet`, and anonymous guest mode for attendees in emergencies.
+- **Matching:** nearest online verified & approved volunteers scored by distance, skill fit and current workload.
 
 ## Sample data and limits
 
@@ -37,7 +38,7 @@ Map tiles come from OpenStreetMap, so the browser needs internet access.
 ## Known limitations
 
 1. **In-Memory Store (No Database)**: Seeded and runtime data lives in process memory (`server/src/data.js`). Data resets on server restart or via `POST /api/demo/reset`. Production target schema is provided in `docs/schema.sql` (PostgreSQL + PostGIS).
-2. **No User Authentication**: Users switch between Attendee, Volunteer, and Organiser roles via the client-side role picker without password or OTP verification.
+2. **Development OTP & In-Memory Sessions**: SMS OTP defaults to the console provider with dev code `123456` when `DEV_OTP=true` (stubs ready for Twilio/MSG91/Exotel). Active sessions and refresh tokens are kept in memory until the database layer is connected.
 3. **In-Browser Voice Only (No IVR Dial-in)**: Voice assistance utilizes the browser's Web Speech API and keyword NLU; cloud IVR / telephony dial-in for basic feature phones (e.g. via Twilio or Exotel) is not yet integrated.
 4. **No Real Emergency Dispatch**: Requests flagged as "Emergency" or "critical" notify and prioritize in-app volunteers only; they do not dispatch to municipal 108 ambulance or police systems.
 5. **Simulated Crowd Intelligence**: The 15-minute zone forecast is driven by an internal simulator and trend extrapolator (`crowd.js`), not real physical CCTV cameras or telecom footfall telemetry.

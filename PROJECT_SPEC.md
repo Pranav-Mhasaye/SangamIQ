@@ -26,7 +26,8 @@ Jobs to be done: *functional* (find services, communicate need + location withou
 | Emergency alerts | `POST /api/alerts`, Alerts tab, home banner, organiser broadcast form | Working |
 | Crowd monitoring, heatmaps, organiser dashboard | `OrganiserApp`, `server/src/crowd.js` | Working on simulated crowd data |
 | Predictive crowd intelligence | 15-min linear-trend forecast + automatic alerts in `crowd.js` | Working (simple model) |
-| Verified services / volunteers | `verified` flag, badge in UI | Flag only - no verification workflow |
+| Verified services / volunteers | `verified` flag, `status` (pending/approved/rejected/suspended), Organiser Volunteers tab | Working (volunteer registration + pending queue + organiser approval workflow) |
+| Authentication & Role Protection | Phone+OTP (console/stubs), bcrypt email login for organisers, JWT access + refresh tokens, Helmet, Rate limiting | Working (with senior-friendly anonymous guest mode) |
 | Large-text / senior-friendly UI | Profile -> Large text, 52px touch targets | Working |
 
 ## Explicitly NOT in the prototype (per deck "Functionality NOT included")
@@ -36,7 +37,7 @@ Live LLM integration, real emergency dispatch to 108/police, payment processing,
 Primary **freemium** (attendees free; basic organiser tier free), secondary **subscription** (organisers / event-management companies / hospitals: advanced dashboards, forecasts, SLA). Channels: mobile app, website, B2B partnerships. Geography: Pune first -> Mumbai, Nashik -> rest of Maharashtra. Key metrics: response time, people assisted, emergencies resolved, volunteer response rate, user satisfaction.
 
 ## Next steps (suggested order)
-1. **Auth + roles** - phone-number OTP for attendees/volunteers, PIN/SSO for organisers; verified-volunteer onboarding.
+1. **Auth + roles** - [COMPLETED] Phone OTP for attendees/volunteers, email+bcrypt password for organisers, short-lived JWT access tokens + httpOnly refresh tokens, role-based middleware (`requireAuth`), rate limiting, Helmet, and volunteer verification workflow in Organiser dashboard.
 2. **Postgres/PostGIS** - apply `docs/schema.sql`, replace `server/src/data.js` with a repository layer; use `ST_Distance` / KNN `<->` for matching.
 3. **Real voice AI** - speech-to-text (Whisper / Google STT) + LLM intent in `voice.js`; keep return shape `{intent,type,emergency,reply}`. Add an IVR/phone-call webhook (Twilio / Exotel) so feature-phone users can dial in - this is the deck's main differentiator.
 4. **Offline-first / low network** - deck lists cell congestion as the top technical risk: PWA + service worker, SMS fallback, queue-and-retry requests.
