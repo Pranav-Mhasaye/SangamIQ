@@ -10,7 +10,9 @@
     "setup": "npm install && npm install --prefix server && npm install --prefix client",
     "dev": "concurrently -n api,web -c red,yellow \"npm run dev --prefix server\" \"npm run dev --prefix client\"",
     "build": "npm run build --prefix client",
-    "start": "npm start --prefix server"
+    "start": "npm start --prefix server",
+    "db:migrate": "npm run db:migrate --prefix server",
+    "db:seed": "npm run db:seed --prefix server"
   },
   "devDependencies": {
     "concurrently": "^9.0.1"
