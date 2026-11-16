@@ -5,7 +5,7 @@ import helmet from 'helmet';
 import rateLimit from 'express-rate-limit';
 import { TYPES, CENTER, seed } from './data.js';
 import { addClient, broadcast } from './bus.js';
-import { classify, replyFor } from './voice.js';
+import { classify, replyFor, transcribeAudio, synthesizeSpeech, handleConfirmation } from './voice.js';
 import { snapshot, startCrowdSim, surgeZone } from './crowd.js';
 import authRouter from './auth/routes.js';
 import { requireAuth, optionalAuth } from './auth/middleware.js';
@@ -32,7 +32,8 @@ const app = express();
 // ---------- security ----------
 app.use(helmet({ contentSecurityPolicy: false, crossOriginEmbedderPolicy: false }));
 app.use(cors({ origin: true, credentials: true }));
-app.use(express.json());
+app.use(express.raw({ type: ['audio/*', 'application/octet-stream'], limit: '10mb' }));
+app.use(express.json({ limit: '10mb' }));
 app.use(cookieParser());
 
 // Rate limiters
@@ -328,17 +329,102 @@ app.post('/api/crowd/:id/surge', requireAuth('organiser', 'admin'), async (req, 
 });
 
 // ---------- voice AI (guest or authed) ----------
+app.post('/api/voice/transcribe', requestLimiter, optionalAuth, async (req, res) => {
+  try {
+    let audioBuffer = null;
+    let mimeType = 'audio/webm';
+    let language = req.query.language || req.headers['x-language'] || 'mr';
+
+    if (Buffer.isBuffer(req.body)) {
+      audioBuffer = req.body;
+      mimeType = req.headers['content-type']?.split(';')[0] || 'audio/webm';
+    } else if (req.body && typeof req.body === 'object') {
+      language = req.body.language || language;
+      mimeType = req.body.mimeType || mimeType;
+      if (req.body.audio) {
+        audioBuffer = Buffer.from(req.body.audio, 'base64');
+      }
+    }
+
+    if (!audioBuffer || audioBuffer.length === 0) {
+      return res.status(400).json({ error: 'Audio file or base64 stream is required' });
+    }
+
+    // PRIVACY: Never log raw audio content
+    const result = await transcribeAudio({ audioBuffer, mimeType, language });
+    res.json(result);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 app.post('/api/voice/intent', requestLimiter, optionalAuth, async (req, res) => {
   try {
-    const { text = '', language = 'en', lat, lng, create = true, channel = 'voice' } = req.body || {};
+    const {
+      text = '',
+      language = 'en',
+      lat,
+      lng,
+      create = true,
+      channel = 'voice',
+      confirmed,
+      pendingAction,
+    } = req.body || {};
+
     const pos = { lat: num(lat, CENTER.lat), lng: num(lng, CENTER.lng) };
-    const parsed = classify(text);
+
+    // Multi-turn confirmation handling
+    if (confirmed !== undefined || pendingAction) {
+      const confResult = handleConfirmation(
+        typeof confirmed === 'boolean' ? (confirmed ? 'yes' : 'no') : text,
+        pendingAction,
+        language
+      );
+
+      if (confResult.confirmed && pendingAction) {
+        const actionType = pendingAction.type || 'medical';
+        const actionPriority = pendingAction.priority || (pendingAction.emergency ? 'critical' : 'normal');
+        const request = await createHelpRequest({
+          type: actionType,
+          ...pos,
+          note: `[Voice Confirmed] ${pendingAction.intent} (${actionType})`,
+          language,
+          channel,
+          emergency: Boolean(pendingAction.emergency),
+          priority: actionPriority,
+          userId: req.user?.sub || null,
+        });
+
+        return res.json({
+          intent: pendingAction.intent || 'request_help',
+          type: actionType,
+          emergency: Boolean(pendingAction.emergency),
+          reply: confResult.reply,
+          request,
+          confirmed: true,
+        });
+      }
+
+      if (confResult.cancelled) {
+        return res.json({
+          intent: 'cancelled',
+          type: null,
+          emergency: false,
+          reply: confResult.reply,
+          cancelled: true,
+        });
+      }
+    }
+
+    // Standard classification with safety filter & LLM
+    const parsed = await classify(text, { language });
     const nearestList = parsed.type ? await nearestServices(parsed.type, pos, 1) : [];
     const nearest = nearestList[0] || null;
     const reply = replyFor(parsed, language, nearest);
     let request = null;
 
-    if (create && (parsed.intent === 'request_help' || parsed.intent === 'generic_help')) {
+    // Only create request automatically if confirmation is NOT required
+    if (create && !parsed.needsConfirmation && (parsed.intent === 'request_help' || parsed.intent === 'generic_help')) {
       request = await createHelpRequest({
         type: parsed.type,
         ...pos,
@@ -354,6 +440,27 @@ app.post('/api/voice/intent', requestLimiter, optionalAuth, async (req, res) => 
     res.json({ ...parsed, reply, nearest, request });
   } catch (err) {
     res.status(500).json({ error: err.message, code: err.code });
+  }
+});
+
+app.all('/api/voice/tts', async (req, res) => {
+  try {
+    const text = req.query.text || req.body?.text || '';
+    const language = req.query.language || req.body?.language || 'mr';
+
+    if (!text) return res.status(400).json({ error: 'text is required' });
+
+    const result = await synthesizeSpeech({ text, language });
+    if (result.available && result.audioBuffer) {
+      res.setHeader('Content-Type', result.mimeType || 'audio/mpeg');
+      res.setHeader('Cache-Control', 'public, max-age=3600');
+      return res.send(result.audioBuffer);
+    }
+
+    // Server TTS not active; client falls back to browser speechSynthesis
+    res.status(200).json({ useBrowser: true, notice: 'Server TTS not configured. Use browser speechSynthesis.' });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
   }
 });
 

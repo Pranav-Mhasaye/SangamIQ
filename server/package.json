@@ -11,6 +11,7 @@
     "test:lifecycle": "node test/lifecycle-test.js",
     "test:voice": "node test/test-voice.js",
     "test:auth": "node test/auth-test.js",
+    "eval:voice": "node scripts/eval-voice.js",
     "db:migrate": "node scripts/migrate.js",
     "db:seed": "node scripts/seed.js"
   },
