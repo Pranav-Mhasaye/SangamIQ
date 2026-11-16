@@ -85,12 +85,24 @@ export function seed() {
 
   db.requests = [];
   const mk = (type, dLat, dLng, status, createdMin, acceptMin, vol, priority = 'normal', channel = 'app') => {
+    const volName = vol != null && db.volunteers[vol] ? db.volunteers[vol].name : 'Volunteer';
     const r = {
       id: uid('req'), type, lat: CENTER.lat + dLat, lng: CENTER.lng + dLng, status, priority,
       channel, language: 'mr', note: '', createdAt: min(createdMin), matched: [],
       acceptedBy: vol != null ? db.volunteers[vol].id : null,
       acceptedAt: acceptMin != null ? min(createdMin - acceptMin) : null,
       completedAt: status === 'completed' ? min(createdMin - (acceptMin ?? 1) - 6) : null,
+      escalationRound: 0,
+      lastEscalatedAt: null,
+      maxEscalated: false,
+      rating: status === 'completed' ? 5 : null,
+      feedback: status === 'completed' ? 'Great help, thank you!' : null,
+      ratedAt: status === 'completed' ? min(createdMin - (acceptMin ?? 1) - 5) : null,
+      timeline: [
+        { status: 'open', actor: 'Attendee', timestamp: min(createdMin) },
+        ...(vol != null && acceptMin != null ? [{ status: 'accepted', actor: volName, timestamp: min(createdMin - acceptMin) }] : []),
+        ...(status === 'completed' ? [{ status: 'completed', actor: volName, timestamp: min(createdMin - (acceptMin ?? 1) - 6) }] : []),
+      ],
     };
     db.requests.push(r);
     return r;

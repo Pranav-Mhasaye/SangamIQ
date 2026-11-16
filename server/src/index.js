@@ -17,11 +17,15 @@ import {
   getHelpRequestById,
   listHelpRequests,
   acceptHelpRequest,
-  closeHelpRequest,
+  updateRequestStatus,
+  releaseHelpRequest,
+  submitFeedback,
+  escalateHelpRequest,
   recomputeOpenMatches,
 } from './repos/requestsRepo.js';
 import { getAllAlerts, createAlert } from './repos/alertsRepo.js';
 import { getStats } from './repos/statsRepo.js';
+import { startEscalationWorker } from './services/escalation.js';
 
 const app = express();
 
@@ -33,7 +37,7 @@ app.use(cookieParser());
 
 // Rate limiters
 const otpLimiter = rateLimit({ windowMs: 60 * 1000, max: 5, message: { error: 'Too many OTP requests, try again in a minute' } });
-const requestLimiter = rateLimit({ windowMs: 60 * 1000, max: 10, message: { error: 'Too many requests, slow down' } });
+const requestLimiter = rateLimit({ windowMs: 60 * 1000, max: 15, message: { error: 'Too many requests, slow down' } });
 const authLimiter = rateLimit({ windowMs: 15 * 60 * 1000, max: 20, message: { error: 'Too many login attempts' } });
 
 const num = (v, d) => (Number.isFinite(Number(v)) && v !== '' && v != null ? Number(v) : d);
@@ -84,7 +88,7 @@ app.post('/api/requests', requestLimiter, optionalAuth, async (req, res) => {
     const request = await createHelpRequest(body);
     res.status(201).json(request);
   } catch (e) {
-    res.status(e.status || 500).json({ error: e.message });
+    res.status(e.status || 500).json({ error: e.message, code: e.code });
   }
 });
 
@@ -108,33 +112,137 @@ app.get('/api/requests/:id', async (req, res) => {
   }
 });
 
-// ---------- volunteer actions (requires volunteer role) ----------
-app.post('/api/requests/:id/accept', requireAuth('volunteer'), async (req, res) => {
+// ---------- volunteer lifecycle actions ----------
+app.post('/api/requests/:id/accept', requireAuth('volunteer', 'organiser', 'admin'), async (req, res) => {
   try {
     const volunteerId = req.user.volunteerId || req.body?.volunteerId;
     const result = await acceptHelpRequest(req.params.id, volunteerId);
     if (result.error === 'not_found') return res.status(404).json({ error: 'request or volunteer not found' });
     if (result.error === 'not_approved') return res.status(403).json({ error: 'Volunteer not approved' });
-    if (result.error === 'conflict') return res.status(409).json({ error: 'request already taken' });
+    if (result.error === 'conflict') return res.status(409).json({ error: 'request already taken or invalid status' });
     res.json(result.request);
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
 });
 
-function close(status) {
-  return async (req, res) => {
-    try {
-      const closed = await closeHelpRequest(req.params.id, status);
-      if (!closed) return res.status(404).json({ error: 'request not found' });
-      res.json(closed);
-    } catch (err) {
-      res.status(500).json({ error: err.message });
+app.post('/api/requests/:id/on_the_way', requireAuth('volunteer', 'organiser', 'admin'), async (req, res) => {
+  try {
+    const volunteerId = req.user.volunteerId || req.body?.volunteerId;
+    const volunteer = volunteerId ? await getVolunteerById(volunteerId) : null;
+    const actor = volunteer?.name || req.user.name || req.body?.actor || 'Volunteer';
+    const result = await updateRequestStatus(req.params.id, 'on_the_way', { actor, volunteerId });
+    if (result.error === 'not_found') return res.status(404).json({ error: 'request not found' });
+    if (result.error === 'invalid_transition') return res.status(400).json({ error: result.message });
+    res.json(result.request);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+app.post('/api/requests/:id/on-the-way', requireAuth('volunteer', 'organiser', 'admin'), async (req, res) => {
+  try {
+    const volunteerId = req.user.volunteerId || req.body?.volunteerId;
+    const volunteer = volunteerId ? await getVolunteerById(volunteerId) : null;
+    const actor = volunteer?.name || req.user.name || req.body?.actor || 'Volunteer';
+    const result = await updateRequestStatus(req.params.id, 'on_the_way', { actor, volunteerId });
+    if (result.error === 'not_found') return res.status(404).json({ error: 'request not found' });
+    if (result.error === 'invalid_transition') return res.status(400).json({ error: result.message });
+    res.json(result.request);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.post('/api/requests/:id/arrived', requireAuth('volunteer', 'organiser', 'admin'), async (req, res) => {
+  try {
+    const volunteerId = req.user.volunteerId || req.body?.volunteerId;
+    const volunteer = volunteerId ? await getVolunteerById(volunteerId) : null;
+    const actor = volunteer?.name || req.user.name || req.body?.actor || 'Volunteer';
+    const result = await updateRequestStatus(req.params.id, 'arrived', { actor, volunteerId });
+    if (result.error === 'not_found') return res.status(404).json({ error: 'request not found' });
+    if (result.error === 'invalid_transition') return res.status(400).json({ error: result.message });
+    res.json(result.request);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.post('/api/requests/:id/release', requireAuth('volunteer', 'organiser', 'admin'), async (req, res) => {
+  try {
+    const volunteerId = req.user.volunteerId || req.body?.volunteerId;
+    const volunteer = volunteerId ? await getVolunteerById(volunteerId) : null;
+    const actor = volunteer?.name || req.user.name || req.body?.actor || 'Volunteer';
+    const result = await releaseHelpRequest(req.params.id, volunteerId, actor);
+    if (result.error === 'not_found') return res.status(404).json({ error: 'request not found' });
+    if (result.error === 'invalid_status' || result.error === 'unauthorized') {
+      return res.status(400).json({ error: result.message });
     }
-  };
-}
-app.post('/api/requests/:id/complete', requireAuth('volunteer', 'organiser', 'admin'), close('completed'));
-app.post('/api/requests/:id/cancel', optionalAuth, close('cancelled'));
+    res.json(result.request);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.post('/api/requests/:id/complete', optionalAuth, async (req, res) => {
+  try {
+    const actor = req.user?.name || req.body?.actor || 'User';
+    const result = await updateRequestStatus(req.params.id, 'completed', { actor, volunteerId: req.user?.volunteerId });
+    if (result.error === 'not_found') return res.status(404).json({ error: 'request not found' });
+    if (result.error === 'invalid_transition') return res.status(400).json({ error: result.message });
+    res.json(result.request);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.post('/api/requests/:id/cancel', optionalAuth, async (req, res) => {
+  try {
+    const actor = req.user?.name || req.body?.actor || 'User';
+    const result = await updateRequestStatus(req.params.id, 'cancelled', { actor });
+    if (result.error === 'not_found') return res.status(404).json({ error: 'request not found' });
+    if (result.error === 'invalid_transition') return res.status(400).json({ error: result.message });
+    res.json(result.request);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.post('/api/requests/:id/status', optionalAuth, async (req, res) => {
+  try {
+    const { status, note } = req.body || {};
+    if (!status) return res.status(400).json({ error: 'status is required' });
+    const actor = req.user?.name || req.body?.actor || 'User';
+    const result = await updateRequestStatus(req.params.id, status, { actor, note, volunteerId: req.user?.volunteerId });
+    if (result.error === 'not_found') return res.status(404).json({ error: 'request not found' });
+    if (result.error === 'invalid_transition') return res.status(400).json({ error: result.message });
+    res.json(result.request);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.post('/api/requests/:id/feedback', optionalAuth, async (req, res) => {
+  try {
+    const { rating, comment } = req.body || {};
+    const result = await submitFeedback(req.params.id, { rating, comment });
+    if (result.error === 'not_found') return res.status(404).json({ error: 'request not found' });
+    if (result.error === 'invalid_rating') return res.status(400).json({ error: result.message });
+    res.json(result.request);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.post('/api/requests/:id/escalate', requireAuth('organiser', 'admin'), async (req, res) => {
+  try {
+    const round = Number(req.body?.round) || 1;
+    const result = await escalateHelpRequest(req.params.id, round);
+    if (!result) return res.status(404).json({ error: 'request not found' });
+    res.json(result);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
 
 // ---------- volunteer self-management ----------
 app.get('/api/volunteers', optionalAuth, async (_req, res) => {
@@ -245,7 +353,7 @@ app.post('/api/voice/intent', requestLimiter, optionalAuth, async (req, res) => 
 
     res.json({ ...parsed, reply, nearest, request });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    res.status(500).json({ error: err.message, code: err.code });
   }
 });
 
@@ -286,6 +394,7 @@ const PORT = process.env.PORT || 3001;
 async function bootstrap() {
   await initDb();
   startCrowdSim();
+  startEscalationWorker();
   app.listen(PORT, () => console.log(`SangamIQ API running on http://localhost:${PORT}`));
 }
 
