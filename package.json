@@ -12,7 +12,8 @@
     "build": "npm run build --prefix client",
     "start": "npm start --prefix server",
     "db:migrate": "npm run db:migrate --prefix server",
-    "db:seed": "npm run db:seed --prefix server"
+    "db:seed": "npm run db:seed --prefix server",
+    "eval:voice": "npm run eval:voice --prefix server"
   },
   "devDependencies": {
     "concurrently": "^9.0.1"

@@ -40,7 +40,13 @@ npm run db:seed
 ## What works
 
 - **Attendee:** nearby medical / water / food / toilet / help desk / transport on a map, request help (with Emergency option), live request tracking, call volunteer, get walking directions, alerts, profile, Marathi / Hindi / English, large-text mode.
-- **Voice AI:** tap the mic and speak (Chrome / Edge / Android Chrome) or type: "मला पाणी हवे आहे", "doctor", "where is the toilet". The reply is read aloud in the chosen language and a request is created.
+- **Voice AI & NLU:**
+  - **Speech-to-Text (`POST /api/voice/transcribe`):** Pluggable STT provider supporting OpenAI Whisper and Google Cloud Speech-to-Text with language hints for Marathi (`mr`), Hindi (`hi`), and English (`en-IN`), with browser `SpeechRecognition` and `MediaRecorder` as free fallbacks. Raw audio content is never logged or persisted.
+  - **LLM Intent Classification:** Powered by configurable LLM (`gemini`, `claude`, `openai`, or `keyword` fallback) returning strict JSON: `intent` (`request_help`, `find_service`, `report_lost_person`, `ask_info`, `unknown`), `type`, `emergency`, `urgency` (1–5), `confidence`, and `extractedDetails` (who, symptoms, landmark).
+  - **Unbypassable Safety Overrides:** Mentions of chest pain, unconsciousness, heavy bleeding, breathing trouble, or suicide keywords unconditionally trigger `emergency=true`, `urgency=5`, and `priority='critical'`. The system replies with safe instructions to stay calm and stay put while alerting volunteers, strictly withholding unauthorized medical advice.
+  - **Multi-Turn Confirmation:** Low-confidence results (< 0.75) or ambiguous queries trigger multi-turn confirmation ("Did you say you need water?") supported both by spoken yes/no and two prominent touch buttons.
+  - **Text-to-Speech (`POST /api/voice/tts`):** Browser `speechSynthesis` by default, with optional server TTS (Google Cloud Text-to-Speech) for high-quality natural Marathi neural voices (`mr-IN-Wavenet-A`).
+  - **Accuracy Evaluation:** Comprehensive 69-phrase benchmark across Marathi, Hindi, English, Hinglish, Romanised Marathi, and noisy phrases runnable with `npm run eval:voice`.
 - **Volunteer:** register or sign in with phone + OTP, pending approval screen until approved, go online/offline, reports live location every 10s while online, requests ranked by match + distance, accept, set on the way, mark arrived, complete, release task back to open pool, directions.
 - **Hardened Help-Request Lifecycle:**
   - Formal state machine (`open -> accepted -> on_the_way -> arrived -> completed`, plus `cancelled` and `escalated`).
@@ -55,7 +61,7 @@ npm run db:seed
 
 ## Sample data and limits
 
-All places, volunteers and crowd numbers are fake sample data near Alandi. The attendee app uses a fixed demo location in Alandi (Profile -> "Use my real GPS location" switches to your GPS, though the sample places will then be far away). The voice NLU is keyword based, crowd data is simulated, there is no login, and data lives in memory (resets on server restart; `POST /api/demo/reset` also resets it). See `PROJECT_SPEC.md` for the roadmap.
+All places, volunteers and crowd numbers are fake sample data near Alandi. The attendee app uses a fixed demo location in Alandi (Profile → "Use my real GPS location" switches to your GPS, though the sample places will then be far away). Voice NLU runs via pluggable LLM (keyword fallback when no API key is set), crowd data is simulated, and data lives in memory by default (resets on server restart; `POST /api/demo/reset` also resets it). See `PROJECT_SPEC.md` for the roadmap.
 
 Map tiles come from OpenStreetMap, so the browser needs internet access.
 
@@ -63,7 +69,7 @@ Map tiles come from OpenStreetMap, so the browser needs internet access.
 
 1. **Database Mode & In-Memory Fallback**: Production PostgreSQL + PostGIS database is supported via Docker and `node-pg-migrate`. When running without a live database or with `USE_MEMORY_DB=true`, data lives in memory and resets on restart.
 2. **Development OTP**: SMS OTP defaults to the console provider with dev code `123456` when `DEV_OTP=true` (stubs ready for Twilio/MSG91/Exotel).
-3. **In-Browser Voice Only (No IVR Dial-in)**: Voice assistance utilizes the browser's Web Speech API and keyword NLU; cloud IVR / telephony dial-in for basic feature phones (e.g. via Twilio or Exotel) is not yet integrated.
+3. **In-Browser Voice Only (No IVR Dial-in)**: Voice AI supports pluggable STT (Whisper / Google Cloud STT) and LLM intent classification (Gemini / Claude / OpenAI), falling back to browser Web Speech API and keyword NLU when no API keys are configured. Cloud IVR / telephony dial-in for basic feature phones (e.g. via Twilio or Exotel) is not yet integrated.
 4. **No Real Emergency Dispatch**: Requests flagged as "Emergency" or "critical" notify and prioritize in-app volunteers only; they do not dispatch to municipal 108 ambulance or police systems.
 5. **Simulated Crowd Intelligence**: The 15-minute zone forecast is driven by an internal simulator and trend extrapolator (`crowd.js`), not real physical CCTV cameras or telecom footfall telemetry.
 
@@ -71,7 +77,8 @@ Map tiles come from OpenStreetMap, so the browser needs internet access.
 
 ```
 server/src/repos/  db.js (pool/fallback)  servicesRepo  volunteersRepo  requestsRepo  zonesRepo  alertsRepo  usersRepo  tokensRepo  statsRepo
-server/src/        index.js (API)  voice.js (voice AI)  crowd.js (simulation + forecast)  data.js (seed)  bus.js (SSE)
+server/src/        index.js (API)  voice.js (orchestrator)  crowd.js (simulation + forecast)  data.js (seed)  bus.js (SSE)
+server/src/voice/  safety.js  keyword.js  llm.js  stt.js  tts.js
 server/migrations/ 001_init_postgis_schema.cjs
 client/src/        views/ (Attendee, Volunteer, Organiser)  components/ (MapView, VoiceSheet)  auth.jsx  i18n.js  api.js  styles.css
 docker-compose.yml PostGIS container setup

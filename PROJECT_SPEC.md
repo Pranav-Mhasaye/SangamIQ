@@ -23,7 +23,7 @@ Jobs to be done: *functional* (find services, communicate need + location withou
 | AI-powered assistance requests: real-time matching to nearby verified help | `matchVolunteers()` in `server/src/index.js` (distance + skill fit + workload score) | Working (rule-based; model-ready seam) |
 | Real-time volunteer dispatch + volunteer dashboard | `VolunteerApp`, `/accept`, `/complete`, SSE stream | Working |
 | Request lifecycle & auto-escalation | State machine (`open -> accepted -> on_the_way -> arrived -> completed`, `cancelled`, `escalated`), timeline audit, 90s/30s escalation worker, volunteer release, 10s GPS ping + live ETA, duplicate protection, post-completion 1-5 rating | Working |
-| Voice AI for users without smartphones | `server/src/voice.js` + `VoiceSheet` (browser speech recognition + synthesis) | Working for typed/browser voice; keyword NLU |
+| Voice AI with STT & LLM | `server/src/voice/` (safety, keyword, llm, stt, tts) + `POST /api/voice/transcribe` + `POST /api/voice/tts` + LLM intent classification | Working (pluggable STT & LLM; keyword fallback; 69-phrase eval benchmark 100%) |
 | Emergency alerts | `POST /api/alerts`, Alerts tab, home banner, organiser broadcast form | Working |
 | Crowd monitoring, heatmaps, organiser dashboard | `OrganiserApp`, `server/src/crowd.js` | Working on simulated crowd data |
 | Predictive crowd intelligence | 15-min linear-trend forecast + automatic alerts in `crowd.js` | Working (simple model) |
@@ -40,7 +40,7 @@ Primary **freemium** (attendees free; basic organiser tier free), secondary **su
 ## Next steps (suggested order)
 1. **Auth + roles** - [COMPLETED] Phone OTP for attendees/volunteers, email+bcrypt password for organisers, short-lived JWT access tokens + httpOnly refresh tokens, role-based middleware (`requireAuth`), rate limiting, Helmet, and volunteer verification workflow in Organiser dashboard.
 2. **Postgres/PostGIS** - [COMPLETED] PostGIS database support added via `docker-compose.yml`, `node-pg-migrate` migrations, seed script, repository layer (`server/src/repos/*.js`), `ST_Distance` and KNN (`<->`) spatial index matching, crowd samples and alerts persistence, with in-memory fallback behind `USE_MEMORY_DB=true`.
-3. **Real voice AI** - speech-to-text (Whisper / Google STT) + LLM intent in `voice.js`; keep return shape `{intent,type,emergency,reply}`. Add an IVR/phone-call webhook (Twilio / Exotel) so feature-phone users can dial in - this is the deck's main differentiator.
+3. **Real voice AI** - [COMPLETED] Pluggable STT (Whisper / Google Cloud STT) + LLM intent classification (Gemini / Claude / OpenAI) with keyword fallback; unbypassable safety overrides; multi-turn confirmation; server TTS; 69-phrase eval benchmark. **Remaining:** Add an IVR/phone-call webhook (Twilio / Exotel) so feature-phone users can dial in — this is the deck's main differentiator.
 4. **Offline-first / low network** - deck lists cell congestion as the top technical risk: PWA + service worker, SMS fallback, queue-and-retry requests.
 5. **Push notifications** to volunteers (FCM / web push) instead of only SSE.
 6. **Real crowd signals** - replace the simulator in `crowd.js` with sensor/CCTV/telecom footfall input; train a proper forecast model.

@@ -10,7 +10,7 @@ let passed = 0;
 let failed = 0;
 
 for (const c of cases) {
-  const res = classify(c.phrase);
+  const res = await classify(c.phrase, { language: c.lang });
   const reply = replyFor(res, c.lang);
 
   const intentOk = res.intent === c.expectedIntent;
