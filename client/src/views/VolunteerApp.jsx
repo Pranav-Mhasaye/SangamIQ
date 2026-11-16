@@ -44,10 +44,34 @@ export default function VolunteerApp({ onExit }) {
     [me?.id]
   );
 
-  const open = useMemo(() => (requests || []).filter((r) => r.status === 'open')
+  const open = useMemo(() => (requests || []).filter((r) => r.status === 'open' || r.status === 'escalated')
     .sort((a, b) => Number(b.matchedToMe) - Number(a.matchedToMe) || (b.priority === 'critical') - (a.priority === 'critical') || a.distanceM - b.distanceM), [requests]);
-  const mine = (requests || []).filter((r) => r.acceptedBy === meId && r.status === 'accepted');
+  const mine = (requests || []).filter((r) => r.acceptedBy === meId && ['accepted', 'on_the_way', 'arrived'].includes(r.status));
   const doneByMe = (requests || []).filter((r) => r.acceptedBy === meId && r.status === 'completed').length;
+
+  // Volunteer live location reporting every 10 seconds while online
+  useEffect(() => {
+    if (!me?.online || !meId) return;
+    if (!('geolocation' in navigator)) return;
+
+    const reportLocation = () => {
+      navigator.geolocation.getCurrentPosition(
+        (pos) => {
+          const { latitude, longitude } = pos.coords;
+          api(`/volunteers/${meId}`, {
+            method: 'PATCH',
+            body: { lat: latitude, lng: longitude },
+          }).catch(() => {});
+        },
+        () => {},
+        { enableHighAccuracy: true, timeout: 8000, maximumAge: 5000 }
+      );
+    };
+
+    reportLocation();
+    const interval = setInterval(reportLocation, 10000);
+    return () => clearInterval(interval);
+  }, [me?.online, meId]);
 
   const flash = (m) => { setToast(m); setTimeout(() => setToast(''), 2500); };
   const toggleOnline = async () => {
@@ -69,9 +93,40 @@ export default function VolunteerApp({ onExit }) {
     reloadReq();
   };
 
+  const markOnTheWay = async (id) => {
+    try {
+      await api(`/requests/${id}/on_the_way`, { method: 'POST', body: { volunteerId: meId } });
+      flash(t('onTheWay'));
+    } catch (e) {
+      flash(e.message);
+    }
+    reloadReq();
+  };
+
+  const markArrived = async (id) => {
+    try {
+      await api(`/requests/${id}/arrived`, { method: 'POST', body: { volunteerId: meId } });
+      flash(t('arrived'));
+    } catch (e) {
+      flash(e.message);
+    }
+    reloadReq();
+  };
+
+  const release = async (id) => {
+    if (!window.confirm(t('confirmRelease'))) return;
+    try {
+      await api(`/requests/${id}/release`, { method: 'POST', body: { volunteerId: meId } });
+      flash(t('taskReleased') || 'Task released');
+    } catch (e) {
+      flash(e.message);
+    }
+    reloadReq();
+  };
+
   const finish = async (id) => {
     try {
-      await api(`/requests/${id}/complete`, { method: 'POST' });
+      await api(`/requests/${id}/complete`, { method: 'POST', body: { volunteerId: meId } });
       flash(t('markedDone'));
     } catch (e) {
       flash(e.message);
@@ -186,10 +241,41 @@ export default function VolunteerApp({ onExit }) {
         {mine.length > 0 && <>
           <h3 className="section">{t('yourActiveTasks')}</h3>
           <ul className="list">{mine.map((r) => (
-            <li key={r.id} className="card req">
-              <Dot type={r.type} /><div className="grow"><b>{t.type(r.type)}</b><small>{km(r.distanceM)} · {r.etaMin} {t('minAway')} · {ago(r.createdAt)}</small>{r.note && <em>“{r.note}”</em>}</div>
-              <a className="btn small ghost" target="_blank" rel="noreferrer" href={`https://www.google.com/maps/dir/?api=1&destination=${r.lat},${r.lng}&travelmode=walking`} aria-label={t('getDirections')}><Navigation size={16} /></a>
-              <button className="btn small" onClick={() => finish(r.id)}><Check size={16} /> {t('done')}</button>
+            <li key={r.id} className="card req" style={{ flexDirection: 'column', alignItems: 'stretch', gap: '10px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                <Dot type={r.type} />
+                <div className="grow">
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap' }}>
+                    <b>{t.type(r.type)}</b>
+                    <span className="tag" style={{ textTransform: 'capitalize' }}>
+                      {t(`st_${r.status}`) || r.status.replace(/_/g, ' ')}
+                    </span>
+                  </div>
+                  <small>{km(r.distanceM)} · {r.etaMin} {t('minAway')} · {ago(r.createdAt)}</small>
+                  {r.note && <em>“{r.note}”</em>}
+                </div>
+                <a className="btn small ghost" target="_blank" rel="noreferrer" href={`https://www.google.com/maps/dir/?api=1&destination=${r.lat},${r.lng}&travelmode=walking`} aria-label={t('getDirections')}><Navigation size={16} /></a>
+              </div>
+              <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end', borderTop: '1px solid var(--border)', paddingTop: '8px' }}>
+                <button className="btn small ghost" onClick={() => release(r.id)} style={{ color: 'var(--text-muted)' }}>
+                  {t('releaseTask')}
+                </button>
+                {r.status === 'accepted' && (
+                  <button className="btn small" onClick={() => markOnTheWay(r.id)}>
+                    {t('onTheWay')}
+                  </button>
+                )}
+                {r.status === 'on_the_way' && (
+                  <button className="btn small" onClick={() => markArrived(r.id)}>
+                    {t('arrived')}
+                  </button>
+                )}
+                {r.status === 'arrived' && (
+                  <button className="btn small" onClick={() => finish(r.id)}>
+                    <Check size={16} /> {t('done')}
+                  </button>
+                )}
+              </div>
             </li>))}</ul>
         </>}
 

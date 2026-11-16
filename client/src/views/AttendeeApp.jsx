@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Home, Map as MapIcon, Bell, User, Mic, PhoneCall, Navigation, ArrowLeft, MapPin, LocateFixed, ShieldCheck, Siren, ChevronRight, Check } from 'lucide-react';
+import { Home, Map as MapIcon, Bell, User, Mic, PhoneCall, Navigation, ArrowLeft, MapPin, LocateFixed, ShieldCheck, Siren, ChevronRight, Check, AlertTriangle } from 'lucide-react';
 import { api, useLive, ago } from '../api';
 import { useApp } from '../ctx';
 import { useAuth } from '../auth';
@@ -11,6 +11,19 @@ import { load, save } from '../store';
 
 const mapsLink = (lat, lng) => `https://www.google.com/maps/dir/?api=1&destination=${lat},${lng}&travelmode=walking`;
 const km = (m) => (m >= 1000 ? `${(m / 1000).toFixed(1)} km` : `${m} m`);
+
+function calcDistAndEta(a, b) {
+  if (!a || !b || !Number.isFinite(a.lat) || !Number.isFinite(b.lat)) return null;
+  const R = 6371000;
+  const dLat = ((b.lat - a.lat) * Math.PI) / 180;
+  const dLng = ((b.lng - a.lng) * Math.PI) / 180;
+  const sinLat = Math.sin(dLat / 2);
+  const sinLng = Math.sin(dLng / 2);
+  const q = sinLat * sinLat + Math.cos((a.lat * Math.PI) / 180) * Math.cos((b.lat * Math.PI) / 180) * sinLng * sinLng;
+  const distM = Math.round(2 * R * Math.asin(Math.min(1, Math.sqrt(q))));
+  const etaMin = Math.max(1, Math.round(distM / 70));
+  return { distM, etaMin };
+}
 
 function TypeIcon({ type, size = 26 }) {
   const { Icon, color } = TYPE_META[type];
@@ -169,7 +182,14 @@ function RequestScreen({ initialType, onBack, onSent }) {
         },
       });
       onSent(r.id);
-    } catch (e) { setErr(e.message); setBusy(false); }
+    } catch (e) {
+      if (e.message && e.message.toLowerCase().includes('already requested')) {
+        setErr(t('duplicateRequest'));
+      } else {
+        setErr(e.message);
+      }
+      setBusy(false);
+    }
   };
 
   return (
@@ -229,7 +249,12 @@ function DetailScreen({ id, onBack, onRequest }) {
 }
 
 function TrackScreen({ id, onBack, onDone }) {
-  const { t, lang, pos } = useApp();
+  const { t, lang } = useApp();
+  const [rating, setRating] = useState(0);
+  const [comment, setComment] = useState('');
+  const [submittingFeedback, setSubmittingFeedback] = useState(false);
+  const [feedbackSubmitted, setFeedbackSubmitted] = useState(false);
+
   const [r, reload] = useLive(
     async () => {
       try {
@@ -239,28 +264,131 @@ function TrackScreen({ id, onBack, onDone }) {
         return null;
       }
     },
-    ['request:update'],
+    ['request:update', 'volunteer:update'],
     [id]
   );
   if (!r) return <div className="phone"><header className="topbar back"><button className="icon-btn" onClick={onBack}><ArrowLeft size={22} /></button></header></div>;
-  const steps = [['open', t('st_open')], ['accepted', t('st_accepted')], ['completed', t('st_completed')]];
-  const idx = r.status === 'cancelled' ? -1 : steps.findIndex(([k]) => k === r.status);
-  const act = async (what) => { await api(`/requests/${id}/${what}`, { method: 'POST' }); reload(); if (what === 'cancel') onDone(); };
+
+  const steps = [
+    ['open', t('st_open')],
+    ['accepted', t('st_accepted')],
+    ['on_the_way', t('st_on_the_way')],
+    ['arrived', t('st_arrived')],
+    ['completed', t('st_completed')],
+  ];
+  const stepIdxMap = {
+    open: 0,
+    escalated: 0,
+    accepted: 1,
+    on_the_way: 2,
+    arrived: 3,
+    completed: 4,
+    cancelled: -1,
+  };
+  const idx = stepIdxMap[r.status] ?? 0;
+
+  const act = async (what) => {
+    await api(`/requests/${id}/${what}`, { method: 'POST' });
+    reload();
+    if (what === 'cancel') onDone();
+  };
+
+  const submitFeedbackAction = async () => {
+    if (!rating) return;
+    setSubmittingFeedback(true);
+    try {
+      await api(`/requests/${id}/feedback`, {
+        method: 'POST',
+        body: { rating, comment },
+      });
+      setFeedbackSubmitted(true);
+      reload();
+    } catch (err) {
+      alert(err.message);
+    } finally {
+      setSubmittingFeedback(false);
+    }
+  };
+
   const v = r.volunteer;
+  const vEta = v && Number.isFinite(v.lat) && Number.isFinite(v.lng)
+    ? calcDistAndEta(v, { lat: r.lat, lng: r.lng })
+    : null;
   const nsName = r.nearestService ? (((lang === 'mr' && r.nearestService.name_mr) || (lang === 'hi' && r.nearestService.name_hi) || r.nearestService.name)) : '';
+
   return (
     <div className="phone">
       <header className="topbar back"><button className="icon-btn" onClick={onBack} aria-label={t('back')}><ArrowLeft size={22} /></button><h1>{t('yourRequest')}</h1></header>
       <main className="scroll">
         <div className="hero" style={{ '--c': TYPE_META[r.type].color }}><TypeIcon type={r.type} size={34} />
           <div><b>{t.type(r.type)}</b><small>{ago(r.createdAt)}{r.priority === 'critical' ? ` · ${t('emergency')}` : ''}</small></div></div>
-        {r.status === 'cancelled' ? <p className="lead">{t('st_cancelled')}</p> : (
+
+        {r.status === 'cancelled' ? (
+          <p className="lead">{t('st_cancelled')}</p>
+        ) : (
           <ol className="steps">{steps.map(([k, label], i) => <li key={k} className={i <= idx ? 'done' : ''}><span>{i < idx || r.status === 'completed' ? <Check size={14} /> : ''}</span>{label}</li>)}</ol>
         )}
+
+        {r.status === 'escalated' && !r.maxEscalated && (
+          <div className="card" style={{ background: '#FFF7ED', borderColor: '#FDBA74', color: '#9A3412', margin: '12px 0', padding: '12px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontWeight: 600 }}>
+              <AlertTriangle size={18} color="#EA580C" /> {t('st_escalated')}
+            </div>
+            <small style={{ display: 'block', marginTop: '4px' }}>
+              Round {r.escalationRound || 1}: Alerting wider volunteer radius...
+            </small>
+          </div>
+        )}
+
+        {(r.maxEscalated || r.escalationRound >= 3) && (
+          <div className="card" style={{ background: '#FEF2F2', borderColor: '#FCA5A5', color: '#991B1B', margin: '12px 0', padding: '14px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontWeight: 700 }}>
+              <AlertTriangle size={20} color="#DC2626" /> {t('nearestPhysicalPoint')}
+            </div>
+            {r.nearestService && (
+              <div style={{ marginTop: '10px' }}>
+                <a className="btn sos small" target="_blank" rel="noreferrer" href={mapsLink(r.nearestService.lat, r.nearestService.lng)} style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
+                  <Navigation size={16} /> <span>{nsName} ({t('getDirections')})</span>
+                </a>
+              </div>
+            )}
+          </div>
+        )}
+
         {v ? (
-          <div className="card person"><div className="avatar">{v.name[0]}</div><div className="grow"><b>{v.name}</b><small>{(v.skills || []).map((sk) => t.skill(sk)).join(', ')}</small></div>
-            <a className="btn small" href={`tel:${v.phone.replace(/\s/g, '')}`}><PhoneCall size={16} /></a></div>
-        ) : r.status === 'open' && (
+          <>
+            <div className="card person"><div className="avatar">{v.name[0]}</div>
+              <div className="grow">
+                <b>{v.name}</b>
+                <small>{(v.skills || []).map((sk) => t.skill(sk)).join(', ')}</small>
+                {vEta && (
+                  <small style={{ display: 'block', color: 'var(--brand-navy, #12305B)', fontWeight: 600 }}>
+                    {km(vEta.distM)} · ~{vEta.etaMin} {t('minAway')}
+                  </small>
+                )}
+              </div>
+              <a className="btn small" href={`tel:${v.phone.replace(/\s/g, '')}`}><PhoneCall size={16} /></a>
+            </div>
+
+            {['accepted', 'on_the_way'].includes(r.status) && v.lat && v.lng && (
+              <div style={{ margin: '12px 0' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
+                  <small className="muted" style={{ fontWeight: 600 }}>{t('liveVolunteerTracking')}</small>
+                  {vEta && <span className="tag" style={{ background: '#E0F2FE', color: '#0369A1' }}>~{vEta.etaMin} {t('minAway')}</span>}
+                </div>
+                <MapView
+                  center={{ lat: (r.lat + v.lat) / 2, lng: (r.lng + v.lng) / 2 }}
+                  height={160}
+                  zoom={16}
+                  markers={[
+                    { id: 'you', lat: r.lat, lng: r.lng, type: r.type, label: t('yourLocation') },
+                    { id: 'vol', lat: v.lat, lng: v.lng, type: 'transport', label: `${v.name} (${t('onTheWay')})` },
+                  ]}
+                />
+              </div>
+            )}
+          </>
+        ) : ['open', 'escalated'].includes(r.status) && (
           <>
             <h3 className="section">{t('alertedVolunteers')}</h3>
             <ul className="list">{r.matched.map((m) => (
@@ -268,15 +396,97 @@ function TrackScreen({ id, onBack, onDone }) {
                 <div className="grow"><b>{m.name}</b><small>{km(m.distanceM)} · {m.etaMin} {t('minAway')}</small></div></li>))}</ul>
           </>
         )}
-        {r.nearestService && (
+
+        {r.status === 'completed' && (
+          (r.rating || feedbackSubmitted) ? (
+            <div className="card" style={{ padding: '16px', textAlign: 'center', margin: '16px 0', background: '#F0FDF4', borderColor: '#BBF7D0' }}>
+              <div style={{ fontSize: '28px', marginBottom: '6px' }}>
+                {['', '😞', '🙁', '😐', '😊', '🌟'][(r.rating || rating) || 5]}
+              </div>
+              <b>{t('thankYouFeedback')}</b>
+              <p className="tiny muted" style={{ marginTop: '4px' }}>
+                {r.rating || rating} / 5 ⭐ {(r.feedback || comment) && `— “${r.feedback || comment}”`}
+              </p>
+            </div>
+          ) : (
+            <div className="card" style={{ padding: '16px', margin: '16px 0' }}>
+              <b style={{ display: 'block', fontSize: '16px', marginBottom: '4px' }}>{t('howWasHelp')}</b>
+              <p className="tiny muted" style={{ marginBottom: '12px' }}>{t('rateExperience')}</p>
+              <div style={{ display: 'flex', justifyContent: 'space-between', gap: '8px', marginBottom: '12px' }}>
+                {[
+                  { score: 1, emoji: '😞' },
+                  { score: 2, emoji: '🙁' },
+                  { score: 3, emoji: '😐' },
+                  { score: 4, emoji: '😊' },
+                  { score: 5, emoji: '🌟' },
+                ].map(({ score, emoji }) => (
+                  <button
+                    key={score}
+                    type="button"
+                    onClick={() => setRating(score)}
+                    style={{
+                      flex: 1,
+                      padding: '10px 4px',
+                      fontSize: '24px',
+                      borderRadius: '10px',
+                      border: rating === score ? '2px solid var(--brand-red, #C00000)' : '1px solid var(--border)',
+                      background: rating === score ? '#FEF2F2' : 'var(--bg-card, #fff)',
+                      cursor: 'pointer',
+                    }}
+                  >
+                    {emoji}
+                  </button>
+                ))}
+              </div>
+              <textarea
+                rows={2}
+                value={comment}
+                onChange={(e) => setComment(e.target.value)}
+                placeholder={t('optionalComment')}
+                style={{ width: '100%', padding: '8px', borderRadius: '8px', border: '1px solid var(--border)', fontSize: '14px', resize: 'none' }}
+              />
+              <button
+                className="btn small"
+                disabled={!rating || submittingFeedback}
+                onClick={submitFeedbackAction}
+                style={{ marginTop: '8px', width: '100%' }}
+              >
+                {t('submitFeedback')}
+              </button>
+            </div>
+          )
+        )}
+
+        {r.nearestService && !r.maxEscalated && (
           <a className="row-card" target="_blank" rel="noreferrer" href={mapsLink(r.nearestService.lat, r.nearestService.lng)}>
             <TypeIcon type={r.type} /><div className="grow"><b>{nsName}</b><small>{t('getDirections')}</small></div><Navigation size={20} /></a>
         )}
+
+        {r.timeline && r.timeline.length > 0 && (
+          <div style={{ marginTop: '16px' }}>
+            <h3 className="section">{t('timeline')}</h3>
+            <ul className="list" style={{ gap: '8px' }}>
+              {r.timeline.map((entry, i) => (
+                <li key={i} className="card" style={{ padding: '8px 12px', fontSize: '13px' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <span style={{ fontWeight: 600, textTransform: 'capitalize' }}>
+                      {t(`st_${entry.status}`) || entry.status.replace(/_/g, ' ')}
+                    </span>
+                    <small className="muted">{ago(entry.timestamp)}</small>
+                  </div>
+                  <div className="tiny muted" style={{ marginTop: '2px' }}>
+                    {entry.actor} {entry.note ? `· ${entry.note}` : ''}
+                  </div>
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
       </main>
-      {['open', 'accepted'].includes(r.status) && (
+      {['open', 'escalated', 'accepted', 'on_the_way', 'arrived'].includes(r.status) && (
         <div className="cta-bar col">
           <button className="btn sos" onClick={() => act('complete')}><span className="sos-main">{t('gotHelp')}</span></button>
-          {r.status === 'open' && <button className="btn ghost" onClick={() => act('cancel')}>{t('cancel')}</button>}
+          {['open', 'escalated'].includes(r.status) && <button className="btn ghost" onClick={() => act('cancel')}>{t('cancel')}</button>}
         </div>
       )}
       {['completed', 'cancelled'].includes(r.status) && <div className="cta-bar"><button className="btn sos" onClick={onDone}><span className="sos-main">{t('close')}</span></button></div>}

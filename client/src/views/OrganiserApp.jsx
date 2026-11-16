@@ -17,6 +17,7 @@ export default function OrganiserApp({ onExit }) {
   const [alerts, reloadAlerts] = useLive(() => api('/alerts'), ['alert:new']);
   const [form, setForm] = useState({ level: 'warning', title: '', message: '', mr: '', hi: '', zone: '' });
   const [msg, setMsg] = useState('');
+  const [selectedRequestTimeline, setSelectedRequestTimeline] = useState(null);
 
   const flash = (m) => { setMsg(m); setTimeout(() => setMsg(''), 2500); };
 
@@ -90,10 +91,11 @@ export default function OrganiserApp({ onExit }) {
       {tab === 'overview' ? (
         <>
           {stats && (
-            <section className="stats5">
+            <section className="stats5" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(130px, 1fr))' }}>
               <div className="stat red"><b>{stats.open}</b><small>Open requests</small></div>
               <div className="stat orange"><b>{stats.inProgress}</b><small>In progress</small></div>
               <div className="stat green"><b>{stats.completed}</b><small>Resolved</small></div>
+              <div className="stat"><b>{stats.avgRating ? `${stats.avgRating} ⭐` : '—'}</b><small>Avg. Rating</small></div>
               <div className="stat"><b>{fmtSec(stats.avgResponseSec)}</b><small>Avg. time to accept</small></div>
               <div className="stat"><b>{stats.volunteersOnline}/{stats.volunteersTotal}</b><small>Volunteers online</small></div>
             </section>
@@ -151,7 +153,7 @@ export default function OrganiserApp({ onExit }) {
             <div className="panel wide2">
               <h3>Help requests</h3>
               <table className="table">
-                <thead><tr><th>Type</th><th>Status</th><th>Priority</th><th>Channel</th><th>Volunteer</th><th>Raised</th></tr></thead>
+                <thead><tr><th>Type</th><th>Status</th><th>Priority</th><th>Channel</th><th>Volunteer</th><th>Rating</th><th>Timeline</th><th>Raised</th></tr></thead>
                 <tbody>
                   {(requests || []).slice(0, 12).map((r) => {
                     const { Icon, color } = TYPE_META[r.type];
@@ -160,7 +162,15 @@ export default function OrganiserApp({ onExit }) {
                         <td><span className="ticon sm" style={{ '--c': color }}><Icon size={14} strokeWidth={2.4} /></span> {LABEL[r.type]}</td>
                         <td><span className={`tag ${r.status}`}>{r.status}</span></td>
                         <td>{r.priority === 'critical' ? <span className="tag crit">critical</span> : r.priority}</td>
-                        <td>{r.channel}</td><td>{r.volunteer?.name || '-'}</td><td>{ago(r.createdAt)}</td>
+                        <td>{r.channel}</td>
+                        <td>{r.volunteer?.name || '-'}</td>
+                        <td>{r.rating ? `${r.rating} ⭐` : '—'}</td>
+                        <td>
+                          <button className="btn small ghost" onClick={() => setSelectedRequestTimeline(r)} style={{ padding: '2px 8px', fontSize: '12px' }}>
+                            View ({r.timeline?.length || 1})
+                          </button>
+                        </td>
+                        <td>{ago(r.createdAt)}</td>
                       </tr>);
                   })}
                 </tbody>
@@ -293,6 +303,44 @@ export default function OrganiserApp({ onExit }) {
             </table>
           </div>
         </section>
+      )}
+
+      {selectedRequestTimeline && (
+        <div style={{
+          position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000, padding: '16px'
+        }}>
+          <div className="panel" style={{ maxWidth: '480px', width: '100%', maxHeight: '80vh', overflowY: 'auto' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px', borderBottom: '1px solid var(--border)', paddingBottom: '8px' }}>
+              <h3 style={{ margin: 0 }}>Request Lifecycle Timeline</h3>
+              <button className="icon-btn" onClick={() => setSelectedRequestTimeline(null)} aria-label="Close">
+                <X size={20} />
+              </button>
+            </div>
+            <div style={{ marginBottom: '12px', fontSize: '13px' }}>
+              <b>ID:</b> <span className="muted">{selectedRequestTimeline.id}</span> · <b>Type:</b> {LABEL[selectedRequestTimeline.type]} · <b>Status:</b> <span className={`tag ${selectedRequestTimeline.status}`}>{selectedRequestTimeline.status}</span>
+              {selectedRequestTimeline.rating && (
+                <div style={{ marginTop: '4px' }}>
+                  <b>Rating:</b> {selectedRequestTimeline.rating} / 5 ⭐ {selectedRequestTimeline.feedback && `— “${selectedRequestTimeline.feedback}”`}
+                </div>
+              )}
+            </div>
+            <ul className="list" style={{ gap: '10px' }}>
+              {(selectedRequestTimeline.timeline || [
+                { status: 'open', actor: selectedRequestTimeline.name || 'User', timestamp: selectedRequestTimeline.createdAt, note: 'Initial request' }
+              ]).map((entry, idx) => (
+                <li key={idx} className="card" style={{ padding: '10px 12px', fontSize: '13px' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <span style={{ fontWeight: 600, textTransform: 'capitalize' }}>{entry.status.replace(/_/g, ' ')}</span>
+                    <small className="muted">{ago(entry.timestamp)}</small>
+                  </div>
+                  <div className="tiny muted" style={{ marginTop: '2px' }}>
+                    By: <b>{entry.actor || 'System'}</b> {entry.note ? `· ${entry.note}` : ''}
+                  </div>
+                </li>
+              ))}
+            </ul>
+          </div>
+        </div>
       )}
 
       {msg && <div className="toast">{msg}</div>}
