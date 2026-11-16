@@ -41,8 +41,15 @@ npm run db:seed
 
 - **Attendee:** nearby medical / water / food / toilet / help desk / transport on a map, request help (with Emergency option), live request tracking, call volunteer, get walking directions, alerts, profile, Marathi / Hindi / English, large-text mode.
 - **Voice AI:** tap the mic and speak (Chrome / Edge / Android Chrome) or type: "मला पाणी हवे आहे", "doctor", "where is the toilet". The reply is read aloud in the chosen language and a request is created.
-- **Volunteer:** register or sign in with phone + OTP, pending approval screen until approved, go online/offline, requests ranked by match + distance, accept, mark done, directions.
-- **Organiser:** sign in with email + password (`admin@sangamiq.local` / `admin123`), live crowd heatmap, 15-minute forecast per zone, automatic crowd alerts, broadcast alerts in 3 languages, request table, KPIs, "Simulate surge" button, and a dedicated **Volunteers** tab to approve, reject or suspend volunteers.
+- **Volunteer:** register or sign in with phone + OTP, pending approval screen until approved, go online/offline, reports live location every 10s while online, requests ranked by match + distance, accept, set on the way, mark arrived, complete, release task back to open pool, directions.
+- **Hardened Help-Request Lifecycle:**
+  - Formal state machine (`open -> accepted -> on_the_way -> arrived -> completed`, plus `cancelled` and `escalated`).
+  - Full request audit timeline (status, actor, timestamp, note) viewable in Attendee track screen and Organiser requests table.
+  - Auto-escalation engine: unaccepted requests escalate after 90s (critical: 30s), expanding volunteer match radius; after 3 rounds, an alert is raised and attendee is shown directions to the nearest physical help point.
+  - Live volunteer tracking & ETA: attendee Track screen shows approaching volunteer moving live on the map.
+  - Duplicate request protection: blocks spam/duplicate open requests of the same type within 2 minutes (HTTP 429).
+  - Post-completion rating: 1-5 emoji ratings with optional comment, with average rating and response KPIs displayed on the Organiser dashboard.
+- **Organiser:** sign in with email + password (`admin@sangamiq.local` / `admin123`), live crowd heatmap, 15-minute forecast per zone, automatic crowd alerts, broadcast alerts in 3 languages, request table with lifecycle timeline and ratings, KPIs (avg rating, avg response time), "Simulate surge" button, and a dedicated **Volunteers** tab to approve, reject or suspend volunteers.
 - **Authentication & Security:** Pluggable OTP provider (console prints code, dev OTP `123456`, SMS stubs for Twilio/MSG91/Exotel), bcrypt for organiser passwords, short-lived JWT access tokens + httpOnly refresh tokens, `express-rate-limit`, `helmet`, and anonymous guest mode for attendees in emergencies.
 - **Matching:** nearest online verified & approved volunteers scored by distance, skill fit and current workload.
 

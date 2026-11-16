@@ -22,6 +22,7 @@ Jobs to be done: *functional* (find services, communicate need + location withou
 | Basic volunteer contact (call) | `tel:` links in Detail/Track screens | Working |
 | AI-powered assistance requests: real-time matching to nearby verified help | `matchVolunteers()` in `server/src/index.js` (distance + skill fit + workload score) | Working (rule-based; model-ready seam) |
 | Real-time volunteer dispatch + volunteer dashboard | `VolunteerApp`, `/accept`, `/complete`, SSE stream | Working |
+| Request lifecycle & auto-escalation | State machine (`open -> accepted -> on_the_way -> arrived -> completed`, `cancelled`, `escalated`), timeline audit, 90s/30s escalation worker, volunteer release, 10s GPS ping + live ETA, duplicate protection, post-completion 1-5 rating | Working |
 | Voice AI for users without smartphones | `server/src/voice.js` + `VoiceSheet` (browser speech recognition + synthesis) | Working for typed/browser voice; keyword NLU |
 | Emergency alerts | `POST /api/alerts`, Alerts tab, home banner, organiser broadcast form | Working |
 | Crowd monitoring, heatmaps, organiser dashboard | `OrganiserApp`, `server/src/crowd.js` | Working on simulated crowd data |
