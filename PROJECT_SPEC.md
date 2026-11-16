@@ -47,6 +47,32 @@ Primary **freemium** (attendees free; basic organiser tier free), secondary **su
 7. **Prototype validation** - the deck reports 0 users tested. Run usability tests with seniors (can they find help, send a request and navigate the map unaided?) and record results.
 8. **Native shell** - wrap the PWA with Capacitor, or rebuild screens in React Native / Flutter.
 
+## Free-stack rules (binding for every contributor and AI agent)
+
+This project runs at **zero cost**. Every external service must have a genuinely free tier (no credit card required to start) or an open-source self-hostable alternative, be optional behind an env var, and degrade gracefully when its key is missing (no crashes, a clear log message, and the app still works).
+
+| Layer | Free choice | Fallback when key is missing |
+|---|---|---|
+| **Maps** | Leaflet with OpenFreeMap tiles (`https://tiles.openfreemap.org/styles/liberty/{z}/{x}/{y}.png`) or self-hosted Protomaps. **Do not use `tile.openstreetmap.org`** (their tile usage policy forbids heavy/commercial use). | Leaflet still loads; tiles from env var `TILE_URL` or the OpenFreeMap default. |
+| **Database** | PostgreSQL + PostGIS (local Docker; Neon or Supabase free tier for deploy). | `USE_MEMORY_DB=true` — fully functional in-memory store, no external dependency. |
+| **Auth** | Email + password (bcrypt) and email magic links for volunteers/organisers. Guest mode (anonymous device ID) for attendees. Phone OTP via pluggable provider with `console` dev provider (prints to log, accepts `123456` when `DEV_OTP=true`). | Console OTP — no SMS account needed. Guest mode always works. |
+| **Voice STT** | Browser `SpeechRecognition` (free, no key). Optional: Whisper API (free tier via Groq or local `whisper.cpp`), Google Cloud STT free tier. | Browser recognition or keyword classifier. |
+| **Voice LLM** | Keyword classifier (zero cost, built-in). Optional: Gemini free tier, Groq free tier, local Ollama. | Keyword classifier runs automatically. |
+| **Voice TTS** | Browser `speechSynthesis` (free). Optional: Google Cloud TTS free tier. | Browser synthesis. |
+| **IVR / telephony** | Simulator + provider adapter interface. No telephony account required. Optional: Twilio/Exotel free trial. | IVR simulator for demo; feature-phone dial-in is not available without a provider. |
+| **Messaging** | Telegram Bot API (free, unlimited). `wa.me` share links (free, no WhatsApp Business API). `sms:` URI scheme for SMS links. | All three are free or device-native links. No paid messaging API. |
+| **Push notifications** | Web Push with self-generated VAPID keys (free, standards-based). | SSE stream (already working) remains the real-time fallback. |
+| **Billing** | Model plans and feature flags only. Payments stay in test/mock mode behind `BILLING_ENABLED=false`. | Billing disabled — all features unlocked. |
+| **Hosting** | GitHub Pages (landing page), Render free tier (app), GitHub Actions (CI). | Local dev with `npm run dev`. |
+| **CI** | GitHub Actions free tier (2 000 min/month for public repos). | Run tests locally with `npm test`. |
+
+**Rules for new features:**
+1. Always implement the free/local fallback first and confirm it works before wiring an optional paid provider.
+2. Every optional provider is behind an env var. If the var is empty or missing, the fallback activates with a `console.info` message (not a warning or error).
+3. `.env.example` lists every var with a comment: required/optional, free/paid, where to get a key.
+4. Never commit API keys, tokens or secrets. `.env` is in `.gitignore`.
+5. Never add a dependency that requires a paid license for our use case.
+
 ## Conventions
 - API under `/api`, JSON, ISO timestamps. Live updates through one SSE stream (`/api/stream`): `request:new`, `request:update`, `alert:new`, `crowd:update`, `volunteer:update`.
 - Attendee-visible strings go in `client/src/i18n.js` for all 3 languages; keep sentences short and plain.
