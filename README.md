@@ -59,11 +59,36 @@ npm run db:seed
 - **Authentication & Security:** Pluggable OTP provider (console prints code, dev OTP `123456`, SMS stubs for Twilio/MSG91/Exotel), bcrypt for organiser passwords, short-lived JWT access tokens + httpOnly refresh tokens, `express-rate-limit`, `helmet`, and anonymous guest mode for attendees in emergencies.
 - **Matching:** nearest online verified & approved volunteers scored by distance, skill fit and current workload.
 
+### Map Tiles & Spatial Layers
+
+The app renders maps via Leaflet using **OpenFreeMap** vector tiles rendered with MapLibre GL by default. OpenFreeMap is completely free, requires no API key, imposes no request caps, and permits commercial use.
+
+If you outgrow the free OpenFreeMap tier, need custom styles, or want an enterprise SLA, you can switch to any raster tile provider by setting environment variables in client configuration:
+
+- **CARTO Basemaps (Voyager / Positron)**: Free key (no credit card) at https://carto.com/basemaps/apikey (1M–5M tiles/month free):
+  ```env
+  VITE_TILE_URL=https://basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}.png?key=YOUR_API_KEY
+  VITE_TILE_ATTRIBUTION=© <a href="https://carto.com">CARTO</a> © <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>
+  ```
+- **MapTiler**: Free tier (100k requests/month, no credit card) at https://cloud.maptiler.com:
+  ```env
+  VITE_TILE_URL=https://api.maptiler.com/maps/streets-v2/{z}/{x}/{y}.png?key=YOUR_API_KEY
+  ```
+- **Stadia Maps**: Free tier (200k tiles/month, no credit card) at https://client.stadiamaps.com:
+  ```env
+  VITE_TILE_URL=https://tiles.stadiamaps.com/tiles/osm_bright/{z}/{x}/{y}.png?api_key=YOUR_API_KEY
+  ```
+- **Self-Hosted Protomaps / TileServer GL**: For 100% offline or on-premises deployments:
+  ```env
+  VITE_TILE_URL=http://localhost:8080/tiles/{z}/{x}/{y}.png
+  ```
+
+**Offline / Error Graceful Degradation:**
+If the configured tile server fails or network is lost (5+ consecutive tile load errors), the map automatically falls back to an offline canvas grid with a subtle *"Map tiles unavailable"* badge. Crucially, all interactive layers — emergency pins, crowd zone circles, volunteer markers, and user GPS locations — remain fully interactive and visible.
+
 ## Sample data and limits
 
 All places, volunteers and crowd numbers are fake sample data near Alandi. The attendee app uses a fixed demo location in Alandi (Profile → "Use my real GPS location" switches to your GPS, though the sample places will then be far away). Voice NLU runs via pluggable LLM (keyword fallback when no API key is set), crowd data is simulated, and data lives in memory by default (resets on server restart; `POST /api/demo/reset` also resets it). See `PROJECT_SPEC.md` for the roadmap.
-
-Map tiles come from OpenStreetMap, so the browser needs internet access.
 
 ## Known limitations
 

@@ -1,8 +1,9 @@
 import { useEffect } from 'react';
-import { MapContainer, TileLayer, Marker, Circle, Tooltip, useMap } from 'react-leaflet';
+import { MapContainer, Marker, Circle, Tooltip, useMap } from 'react-leaflet';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import { TYPE_META } from '../types';
+import MapTiles from './MapTiles';
 
 const pin = (color, glyph, size = 34, cls = '') =>
   L.divIcon({
@@ -26,7 +27,7 @@ export default function MapView({ center, zoom = 16, markers = [], circles = [],
   return (
     <div className={`map ${isCompact ? 'map-compact' : ''}`} style={{ height }}>
       <MapContainer center={c} zoom={zoom} scrollWheelZoom zoomControl={false} attributionControl>
-        <TileLayer attribution="&copy; OpenStreetMap contributors" url="https://tile.openstreetmap.org/{z}/{x}/{y}.png" maxZoom={19} />
+        <MapTiles />
         {recenter && <Recenter center={c} />}
         {circles.map((z) => (
           <Circle key={z.id} center={[z.lat, z.lng]} radius={z.radius}
