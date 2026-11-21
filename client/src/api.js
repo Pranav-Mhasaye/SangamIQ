@@ -35,13 +35,23 @@ export async function api(path, { method = 'GET', body } = {}) {
         body: body ? JSON.stringify(body) : undefined,
       });
       const retryData = await retry.json().catch(() => ({}));
-      if (!retry.ok) throw new Error(retryData.error || retry.statusText);
+      if (!retry.ok) {
+        const err = new Error(retryData.error || retry.statusText);
+        err.status = retry.status;
+        err.data = retryData;
+        throw err;
+      }
       return retryData;
     }
   }
 
   const data = await res.json().catch(() => ({}));
-  if (!res.ok) throw new Error(data.error || res.statusText);
+  if (!res.ok) {
+    const err = new Error(data.error || res.statusText);
+    err.status = res.status;
+    err.data = data;
+    throw err;
+  }
   return data;
 }
 

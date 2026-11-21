@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState, useCallback } from 'react';
 import { Bell, ChevronRight, Navigation, Check, Clock, AlertTriangle, ShieldX, RefreshCw } from 'lucide-react';
 import { api, useLive, ago } from '../api';
 import { TYPE_META } from '../types';
@@ -13,29 +13,35 @@ const km = (m) => (m >= 1000 ? `${(m / 1000).toFixed(1)} km` : `${m} m`);
 export default function VolunteerApp({ onExit }) {
   const { t, lang, setLang } = useApp();
   const { user, logout } = useAuth();
-  const [meId, setMeId] = useState(() => user?.volunteerId || load('siq_vol', null));
+  const [meId, setMeId] = useState(() => user?.volunteerId || null);
   const [volunteers, reloadVol] = useLive(() => api('/volunteers'), ['volunteer:update']);
   const [toast, setToast] = useState('');
 
+  const handleSessionExpired = useCallback(() => {
+    save('siq_auth_notice', t('sessionExpiredVol') || 'Session expired or volunteer record not found. Please sign in again.');
+    save('siq_vol', null);
+    logout();
+  }, [logout, t]);
+
   useEffect(() => {
-    if (user?.volunteerId) {
-      setMeId(user.volunteerId);
-      save('siq_vol', user.volunteerId);
-    } else if (volunteers?.length) {
-      const exists = volunteers.some((v) => v.id === meId);
+    if (!user?.volunteerId) {
+      handleSessionExpired();
+      return;
+    }
+    setMeId(user.volunteerId);
+    save('siq_vol', user.volunteerId);
+
+    // If volunteers list has loaded from server, verify user.volunteerId exists
+    if (volunteers && volunteers.length > 0) {
+      const exists = volunteers.some((v) => v.id === user.volunteerId);
       if (!exists) {
-        const fallback = volunteers[0].id;
-        setMeId(fallback);
-        save('siq_vol', fallback);
+        console.warn(`[VolunteerApp] Volunteer ${user.volunteerId} not found on server. Session invalid, logging out.`);
+        handleSessionExpired();
       }
     }
-  }, [volunteers, meId, user?.volunteerId]);
+  }, [volunteers, user?.volunteerId, handleSessionExpired]);
 
-  useEffect(() => {
-    if (meId) save('siq_vol', meId);
-  }, [meId]);
-
-  const me = volunteers?.find((v) => v.id === meId) || (volunteers?.length ? volunteers[0] : null);
+  const me = volunteers?.find((v) => v.id === meId) || null;
   const status = me?.status || user?.volunteerStatus || 'approved';
 
   const [requests, reloadReq] = useLive(
@@ -49,36 +55,78 @@ export default function VolunteerApp({ onExit }) {
   const mine = (requests || []).filter((r) => r.acceptedBy === meId && ['accepted', 'on_the_way', 'arrived'].includes(r.status));
   const doneByMe = (requests || []).filter((r) => r.acceptedBy === meId && r.status === 'completed').length;
 
-  // Volunteer live location reporting every 10 seconds while online
+  // Volunteer live location reporting with backoff, in-flight guard, and 403 handling
   useEffect(() => {
-    if (!me?.online || !meId) return;
+    if (!me?.online || !meId || !user?.volunteerId) return;
     if (!('geolocation' in navigator)) return;
 
-    const reportLocation = () => {
+    let stopped = false;
+    let timerId = null;
+    let inFlight = false;
+    let consecutiveFailures = 0;
+
+    const scheduleNext = (ms) => {
+      if (stopped) return;
+      if (timerId) clearTimeout(timerId);
+      timerId = setTimeout(sendUpdate, ms);
+    };
+
+    const sendUpdate = () => {
+      if (stopped || inFlight) return;
+      inFlight = true;
+
       navigator.geolocation.getCurrentPosition(
-        (pos) => {
+        async (pos) => {
+          if (stopped) return;
           const { latitude, longitude } = pos.coords;
-          api(`/volunteers/${meId}`, {
-            method: 'PATCH',
-            body: { lat: latitude, lng: longitude },
-          }).catch(() => {});
+          try {
+            await api(`/volunteers/${meId}`, {
+              method: 'PATCH',
+              body: { lat: latitude, lng: longitude },
+            });
+            consecutiveFailures = 0;
+            scheduleNext(10000);
+          } catch (err) {
+            console.warn('[VolunteerApp] Location update error:', err.status, err.message);
+            if (err.status === 403 || err.status === 401 || err.status === 404) {
+              stopped = true;
+              handleSessionExpired();
+              return;
+            }
+            consecutiveFailures++;
+            const backoffMs = Math.min(60000, 10000 * Math.pow(2, consecutiveFailures));
+            scheduleNext(backoffMs);
+          } finally {
+            inFlight = false;
+          }
         },
-        () => {},
+        () => {
+          inFlight = false;
+          scheduleNext(15000);
+        },
         { enableHighAccuracy: true, timeout: 8000, maximumAge: 5000 }
       );
     };
 
-    reportLocation();
-    const interval = setInterval(reportLocation, 10000);
-    return () => clearInterval(interval);
-  }, [me?.online, meId]);
+    sendUpdate();
+
+    return () => {
+      stopped = true;
+      if (timerId) clearTimeout(timerId);
+    };
+  }, [me?.online, meId, user?.volunteerId, handleSessionExpired]);
 
   const flash = (m) => { setToast(m); setTimeout(() => setToast(''), 2500); };
   const toggleOnline = async () => {
+    if (!meId) return;
     try {
       await api(`/volunteers/${meId}`, { method: 'PATCH', body: { online: !me.online } });
       reloadVol();
     } catch (e) {
+      if (e.status === 403 || e.status === 401 || e.status === 404) {
+        handleSessionExpired();
+        return;
+      }
       flash(e.message);
     }
   };

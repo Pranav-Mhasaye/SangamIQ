@@ -1,29 +1,48 @@
 /**
- * MapTiles — configurable tile layer for Leaflet.
+ * MapTiles — configurable tile layer for Leaflet with resilient fallbacks.
  *
- * Default: OpenFreeMap vector tiles via MapLibre GL (free, no API key, no limits).
- * Override: set VITE_TILE_URL to use any raster tile provider (CARTO, MapTiler, etc.).
- * Fallback: on repeated tile errors, shows a plain light canvas so overlays remain visible.
+ * 1. Default: OpenFreeMap vector tiles via MapLibre GL Leaflet bridge (free, no API key, unlimited).
+ *    Worker is bundled via Vite's `?url` import and explicitly registered via `setWorkerUrl`.
+ * 2. If MapLibre fails or worker cannot load: automatically degrades to raster tiles.
+ * 3. If raster tiles also fail (e.g. offline / repeated network errors): degrades to a canvas grid
+ *    with a "Map tiles unavailable" notice, keeping all pins, zones and GPS markers visible.
  */
 import { useEffect, useRef, useState } from 'react';
 import { TileLayer, useMap } from 'react-leaflet';
 import L from 'leaflet';
+import { setWorkerUrl } from 'maplibre-gl';
+import workerUrl from 'maplibre-gl/dist/maplibre-gl-worker.mjs?url';
+import 'maplibre-gl/dist/maplibre-gl.css';
+import '@maplibre/maplibre-gl-leaflet';
 
-/* ── env-var tile config ─────────────────────────────────────────────── */
+// Explicitly register the Vite-emitted worker URL before any map instance is created
+try {
+  setWorkerUrl(workerUrl);
+} catch (e) {
+  console.warn('[MapTiles] setWorkerUrl error:', e);
+}
+
+/* ── Configuration ───────────────────────────────────────────────────── */
 const TILE_URL = import.meta.env.VITE_TILE_URL || '';
 const TILE_ATTR = import.meta.env.VITE_TILE_ATTRIBUTION || '';
 const TILE_SUBDOMAINS = import.meta.env.VITE_TILE_SUBDOMAINS || 'abc';
 
-/* ── OpenFreeMap style URLs ──────────────────────────────────────────── */
+// OpenFreeMap vector tile style
 const OFM_STYLE = 'https://tiles.openfreemap.org/styles/liberty';
 const OFM_ATTRIBUTION =
   '&copy; <a href="https://openfreemap.org">OpenFreeMap</a> ' +
   '<a href="https://openmaptiles.org">OpenMapTiles</a> ' +
   'Data &copy; <a href="https://www.openstreetmap.org/copyright">OSM</a>';
 
-/* ── Plain canvas fallback (no external tiles) ───────────────────────── */
+// Default raster fallback URL when vector fails or when VITE_TILE_URL is unset
+const DEFAULT_RASTER_URL = 'https://basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png';
+const DEFAULT_RASTER_ATTR =
+  '&copy; <a href="https://carto.com">CARTO</a> ' +
+  '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors';
+
 const FALLBACK_ATTR = 'Map tiles unavailable';
 
+/* ── Plain canvas fallback layer (offline / zero external assets) ────── */
 const FallbackTileLayer = L.GridLayer.extend({
   createTile() {
     const tile = document.createElement('canvas');
@@ -34,7 +53,7 @@ const FallbackTileLayer = L.GridLayer.extend({
     ctx.fillRect(0, 0, 256, 256);
     ctx.strokeStyle = '#e0e0e0';
     ctx.lineWidth = 1;
-    // subtle grid
+    // subtle grid pattern
     for (let i = 0; i < 256; i += 64) {
       ctx.beginPath();
       ctx.moveTo(i, 0); ctx.lineTo(i, 256);
@@ -45,57 +64,64 @@ const FallbackTileLayer = L.GridLayer.extend({
   },
 });
 
-/* ── MapLibre GL vector layer (lazy-loaded) ──────────────────────────── */
+function CanvasFallbackLayer() {
+  const map = useMap();
+  useEffect(() => {
+    const layer = new FallbackTileLayer({ attribution: FALLBACK_ATTR });
+    layer.addTo(map);
+    return () => { map.removeLayer(layer); };
+  }, [map]);
+  return null;
+}
+
+/* ── MapLibre GL vector layer ────────────────────────────────────────── */
 function VectorTileLayer({ onError }) {
   const map = useMap();
   const layerRef = useRef(null);
 
   useEffect(() => {
-    let cancelled = false;
     let layer = null;
+    let switched = false;
 
-    (async () => {
-      try {
-        // Dynamic import to keep the bundle small when VITE_TILE_URL is set
-        const maplibreGl = await import('maplibre-gl');
-        await import('maplibre-gl/dist/maplibre-gl.css');
-        await import('@maplibre/maplibre-gl-leaflet');
+    const triggerFallback = (reason) => {
+      if (switched) return;
+      switched = true;
+      console.info(`[MapTiles] Vector map fallback triggered: ${reason}`);
+      onError?.();
+    };
 
-        if (cancelled) return;
+    try {
+      layer = L.maplibreGL({
+        style: OFM_STYLE,
+        attribution: OFM_ATTRIBUTION,
+      });
 
-        layer = L.maplibreGL({
-          style: OFM_STYLE,
-          attribution: OFM_ATTRIBUTION,
+      layer.addTo(map);
+      layerRef.current = layer;
+
+      // Monitor underlying MapLibre map for worker or render errors
+      const glMap = layer.getMaplibreMap();
+      if (glMap) {
+        let errorCount = 0;
+        glMap.on('error', (e) => {
+          errorCount++;
+          const msg = e?.error?.message || e?.message || '';
+          // If worker fails to load or multiple errors occur, degrade to raster immediately
+          if (msg.includes('Worker') || msg.includes('worker') || errorCount >= 3) {
+            triggerFallback(msg || 'MapLibre worker/render errors');
+          }
         });
-
-        layer.addTo(map);
-        layerRef.current = layer;
-
-        // Listen for MapLibre errors (network/tile failures)
-        const glMap = layer.getMaplibreMap();
-        if (glMap) {
-          let errorCount = 0;
-          glMap.on('error', (e) => {
-            errorCount++;
-            if (errorCount >= 5) {
-              console.info('[MapTiles] OpenFreeMap vector tiles failing, switching to fallback canvas.');
-              onError?.();
-            }
-          });
-        }
-      } catch (err) {
-        console.info('[MapTiles] MapLibre GL failed to load, switching to fallback canvas:', err.message);
-        if (!cancelled) onError?.();
       }
-    })();
+    } catch (err) {
+      triggerFallback(err.message || 'Initialization exception');
+    }
 
     return () => {
-      cancelled = true;
       if (layer && map.hasLayer(layer)) {
         map.removeLayer(layer);
       }
     };
-  }, [map]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [map, onError]);
 
   return null;
 }
@@ -109,7 +135,7 @@ function RasterTileLayer({ url, attribution, subdomains, onError }) {
     const handler = () => {
       errorCountRef.current++;
       if (errorCountRef.current >= 5) {
-        console.info('[MapTiles] Raster tile errors exceeded threshold, switching to fallback canvas.');
+        console.info('[MapTiles] Raster tile errors exceeded threshold, switching to canvas fallback.');
         onError?.();
       }
     };
@@ -127,27 +153,20 @@ function RasterTileLayer({ url, attribution, subdomains, onError }) {
   );
 }
 
-/* ── Fallback canvas layer ───────────────────────────────────────────── */
-function CanvasFallbackLayer() {
-  const map = useMap();
-
-  useEffect(() => {
-    const layer = new FallbackTileLayer({ attribution: FALLBACK_ATTR });
-    layer.addTo(map);
-    return () => { map.removeLayer(layer); };
-  }, [map]);
-
-  return null;
-}
-
-/* ── Exported component ──────────────────────────────────────────────── */
+/* ── Main MapTiles component ─────────────────────────────────────────── */
 export default function MapTiles() {
-  const [mode, setMode] = useState(() => {
-    if (TILE_URL) return 'raster';
-    return 'vector';
-  });
+  // If VITE_TILE_URL is provided, use raster directly; otherwise start with vector
+  const [mode, setMode] = useState(() => (TILE_URL ? 'raster' : 'vector'));
 
-  const switchToFallback = () => setMode('fallback');
+  const handleVectorError = () => {
+    // Vector mode failed -> switch to raster mode
+    setMode('raster');
+  };
+
+  const handleRasterError = () => {
+    // Raster mode failed -> switch to plain canvas fallback
+    setMode('fallback');
+  };
 
   if (mode === 'fallback') {
     return (
@@ -155,9 +174,9 @@ export default function MapTiles() {
         <CanvasFallbackLayer />
         <div style={{
           position: 'absolute', bottom: 24, left: '50%', transform: 'translateX(-50%)',
-          zIndex: 1000, background: 'rgba(0,0,0,0.6)', color: '#fff',
+          zIndex: 1000, background: 'rgba(0,0,0,0.65)', color: '#fff',
           padding: '4px 12px', borderRadius: 6, fontSize: 12, pointerEvents: 'none',
-          whiteSpace: 'nowrap',
+          whiteSpace: 'nowrap', boxShadow: '0 2px 4px rgba(0,0,0,0.2)',
         }}>
           Map tiles unavailable — overlays still visible
         </div>
@@ -168,14 +187,14 @@ export default function MapTiles() {
   if (mode === 'raster') {
     return (
       <RasterTileLayer
-        url={TILE_URL}
-        attribution={TILE_ATTR || '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'}
+        url={TILE_URL || DEFAULT_RASTER_URL}
+        attribution={TILE_ATTR || (TILE_URL ? '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>' : DEFAULT_RASTER_ATTR)}
         subdomains={TILE_SUBDOMAINS}
-        onError={switchToFallback}
+        onError={handleRasterError}
       />
     );
   }
 
-  // mode === 'vector' (default: OpenFreeMap via MapLibre)
-  return <VectorTileLayer onError={switchToFallback} />;
+  // mode === 'vector' (default: OpenFreeMap vector tiles with MapLibre worker)
+  return <VectorTileLayer onError={handleVectorError} />;
 }

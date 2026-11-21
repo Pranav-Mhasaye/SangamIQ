@@ -122,6 +122,31 @@ export async function getVolunteerById(id) {
   };
 }
 
+export async function getVolunteerByPhone(phone) {
+  if (isMemory()) {
+    return db.volunteers.find((v) => v.phone === phone) || null;
+  }
+
+  const sql = `
+    SELECT
+      id, name, phone, skills, verified, status, online, active_request_id AS "activeRequestId",
+      ST_Y(geom::geometry) AS lat,
+      ST_X(geom::geometry) AS lng,
+      updated_at AS "updatedAt"
+    FROM volunteers
+    WHERE phone = $1
+    LIMIT 1;
+  `;
+  const { rows } = await query(sql, [phone]);
+  if (!rows.length) return null;
+  const r = rows[0];
+  return {
+    ...r,
+    lat: r.lat ? Number(r.lat) : 18.6764,
+    lng: r.lng ? Number(r.lng) : 73.8977,
+  };
+}
+
 export async function updateVolunteer(id, patch) {
   if (isMemory()) {
     const v = db.volunteers.find((x) => x.id === id);

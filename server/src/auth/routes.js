@@ -18,6 +18,7 @@ import {
 import {
   getAllVolunteers,
   getVolunteerById,
+  getVolunteerByPhone,
   updateVolunteer,
   createVolunteer,
 } from '../repos/volunteersRepo.js';
@@ -57,7 +58,7 @@ router.post('/send-otp', async (req, res) => {
 });
 
 // POST /api/auth/verify-otp  { phone, otp, role? }
-// If no user exists for this phone, creates an attendee account.
+// If no user exists for this phone, creates an attendee or volunteer account with valid links.
 router.post('/verify-otp', async (req, res) => {
   const { phone, otp, role = 'attendee' } = req.body || {};
   if (!phone || !otp) return res.status(400).json({ error: 'phone and otp required' });
@@ -68,13 +69,71 @@ router.post('/verify-otp', async (req, res) => {
 
   let user = await findUserByPhone(normalized);
   if (!user) {
-    // Auto-create attendee account on first login
-    user = await createUser({
-      id: uid('usr'), phone: normalized, email: null, passwordHash: null,
-      role: role === 'volunteer' ? 'volunteer' : 'attendee',
-      name: '',
-      volunteerId: null, volunteerStatus: null,
-    });
+    if (role === 'volunteer') {
+      let vol = await getVolunteerByPhone(normalized);
+      if (!vol) {
+        vol = await createVolunteer({
+          id: uid('vol'),
+          name: 'Volunteer ' + normalized.slice(-4),
+          lat: 18.6764,
+          lng: 73.8977,
+          skills: ['first-aid', 'helpdesk'],
+          online: false,
+          verified: true,
+          status: 'approved',
+          phone: normalized,
+          activeRequestId: null,
+        });
+      }
+      user = await createUser({
+        id: uid('usr'),
+        phone: normalized,
+        email: null,
+        passwordHash: null,
+        role: 'volunteer',
+        name: vol.name,
+        volunteerId: vol.id,
+        volunteerStatus: vol.status,
+      });
+    } else {
+      user = await createUser({
+        id: uid('usr'),
+        phone: normalized,
+        email: null,
+        passwordHash: null,
+        role: 'attendee',
+        name: '',
+        volunteerId: null,
+        volunteerStatus: null,
+      });
+    }
+  } else if (role === 'volunteer') {
+    // User already exists — ensure valid volunteerId
+    let vol = user.volunteerId ? await getVolunteerById(user.volunteerId) : null;
+    if (!vol) {
+      vol = await getVolunteerByPhone(normalized);
+    }
+    if (!vol) {
+      vol = await createVolunteer({
+        id: uid('vol'),
+        name: user.name || ('Volunteer ' + normalized.slice(-4)),
+        lat: 18.6764,
+        lng: 73.8977,
+        skills: ['first-aid', 'helpdesk'],
+        online: false,
+        verified: true,
+        status: 'approved',
+        phone: normalized,
+        activeRequestId: null,
+      });
+    }
+    if (user.role !== 'volunteer' || user.volunteerId !== vol.id) {
+      user = await updateUser(user.id, {
+        role: 'volunteer',
+        volunteerId: vol.id,
+        volunteerStatus: vol.status,
+      });
+    }
   }
 
   const tokens = await issueTokens(res, user);

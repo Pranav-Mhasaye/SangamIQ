@@ -40,6 +40,7 @@ app.use(cookieParser());
 const otpLimiter = rateLimit({ windowMs: 60 * 1000, max: 5, message: { error: 'Too many OTP requests, try again in a minute' } });
 const requestLimiter = rateLimit({ windowMs: 60 * 1000, max: 15, message: { error: 'Too many requests, slow down' } });
 const authLimiter = rateLimit({ windowMs: 15 * 60 * 1000, max: 20, message: { error: 'Too many login attempts' } });
+const volunteerPatchLimiter = rateLimit({ windowMs: 10 * 1000, max: 15, message: { error: 'Too many volunteer updates, slow down' } });
 
 const num = (v, d) => (Number.isFinite(Number(v)) && v !== '' && v != null ? Number(v) : d);
 const here = (q) => ({ lat: num(q.lat, CENTER.lat), lng: num(q.lng, CENTER.lng) });
@@ -255,14 +256,14 @@ app.get('/api/volunteers', optionalAuth, async (_req, res) => {
   }
 });
 
-app.patch('/api/volunteers/:id', requireAuth('volunteer', 'organiser', 'admin'), async (req, res) => {
+app.patch('/api/volunteers/:id', volunteerPatchLimiter, requireAuth('volunteer', 'organiser', 'admin'), async (req, res) => {
   try {
     const v = await getVolunteerById(req.params.id);
     if (!v) return res.status(404).json({ error: 'volunteer not found' });
 
     // Volunteers can only update their own record
     if (req.user.role === 'volunteer' && req.user.volunteerId !== v.id) {
-      return res.status(403).json({ error: 'Cannot update another volunteer' });
+      return res.status(403).json({ error: 'Cannot update another volunteer', code: 'FORBIDDEN_VOLUNTEER_MISMATCH' });
     }
 
     const prevOnline = v.online;
@@ -492,8 +493,32 @@ import { fileURLToPath } from 'node:url';
 import fs from 'node:fs';
 const dist = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../../client/dist');
 if (fs.existsSync(dist)) {
-  app.use(express.static(dist));
-  app.get(/^\/(?!api).*/, (_req, res) => res.sendFile(path.join(dist, 'index.html')));
+  app.use(express.static(dist, {
+    setHeaders: (res, filePath) => {
+      if (filePath.endsWith('.mjs') || filePath.endsWith('.js')) {
+        res.setHeader('Content-Type', 'application/javascript; charset=utf-8');
+      }
+    },
+  }));
+
+  // SPA navigation catch-all: ONLY serve index.html for navigation requests
+  // Requests for missing files with an extension (.js, .mjs, .css, .png, .pmtiles, etc.) must return real 404
+  app.get('*', (req, res, next) => {
+    if (req.path.startsWith('/api')) return next();
+
+    // Any asset request with a file extension that was not found by express.static -> 404 Not Found
+    if (path.extname(req.path)) {
+      return res.status(404).type('text/plain').send('File not found');
+    }
+
+    // Only serve index.html for browser navigation requests
+    const accepts = req.headers.accept || '';
+    if (accepts.includes('text/html') || !accepts) {
+      return res.sendFile(path.join(dist, 'index.html'));
+    }
+
+    res.status(404).type('text/plain').send('Not found');
+  });
 }
 
 const PORT = process.env.PORT || 3001;

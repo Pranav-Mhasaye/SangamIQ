@@ -58,6 +58,7 @@ const S = {
   nearestPhysicalPoint: { en: 'All volunteers are currently busy. Nearest direct help point:', hi: 'सभी स्वयंसेवक अभी व्यस्त हैं। सबसे नजदीकी सहायता केंद्र:', mr: 'सर्व स्वयंसेवक सध्या व्यस्त आहेत. सर्वात जवळचे थेट मदत केंद्र:' },
   liveVolunteerTracking: { en: 'Live volunteer location', hi: 'स्वयंसेवक लाइव लोकेशन', mr: 'स्वयंसेवक थेट स्थान' },
   avgRating: { en: 'Avg. Rating', hi: 'औसत रेटिंग', mr: 'सरासरी रेटिंग' },
+  sessionExpiredVol: { en: 'Session expired or volunteer record not found. Please sign in again.', hi: 'सत्र समाप्त हो गया या स्वयंसेवक रिकॉर्ड नहीं मिला। कृपया पुनः साइन इन करें।', mr: 'सत्र संपले किंवा स्वयंसेवक नोंद आढळली नाही. कृपया पुन्हा साइन इन करा.' },
   minAway: { en: 'min away', hi: 'मिनट दूर', mr: 'मिनिटे दूर' },
   noAlerts: { en: 'No alerts right now.', hi: 'अभी कोई अलर्ट नहीं है।', mr: 'सध्या कोणतीही सूचना नाही.' },
   language: { en: 'Language', hi: 'भाषा', mr: 'भाषा' },

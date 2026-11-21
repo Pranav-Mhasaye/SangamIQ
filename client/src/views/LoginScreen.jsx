@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { ArrowLeft, Phone, Lock, Mail, User, ShieldCheck, HeartHandshake, Check, AlertCircle } from 'lucide-react';
 import { useAuth } from '../auth';
 import { useApp } from '../ctx';
+import { load, save } from '../store';
 import { LANGS } from '../i18n';
 import { SKILL_LABEL } from '../i18n';
 
@@ -27,7 +28,14 @@ export default function LoginScreen({ targetRole, onBack, onComplete }) {
 
   // Feedback & loading
   const [busy, setBusy] = useState(false);
-  const [error, setError] = useState('');
+  const [error, setError] = useState(() => {
+    const notice = load('siq_auth_notice', '');
+    if (notice) {
+      save('siq_auth_notice', null);
+      return notice;
+    }
+    return '';
+  });
 
   const toggleSkill = (sk) => {
     setSelectedSkills((prev) =>
